@@ -2678,7 +2678,7 @@ void Usage()
 	#undef FUNC
 	#define FUNC "Usage"
 	
-	printf("%.*s.exe v8.0 / Edouard BERGE 2016 (build 2019-06)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
+	printf("%.*s.exe v8.0 / Edouard BERGE 2016 (build 2024-04)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
 	printf("--- this software is designed to run with colorful images, avoid conversion from Atari/Amiga ---\n");
 	printf("           introducing for the first time ASS technology (Amstrad Split Solver)\n");
 	printf("\n");
