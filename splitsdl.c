@@ -795,12 +795,14 @@ enum e_module {
 						rawinfo.nbcolor++;
 					}
 					/* on met à jour le clipped mask de l'écran */
-					for (i=nbhsp-1;i>=0;i--) {
+					for (i=0;i<nbhsp;i++) {
 						if (hsp[i].group==igroup) {
 							memcpy(hsp[i].palette,tmppalette,sizeof(tmppalette));
 							lasty=hsp[i].y+16;
 							lastsp=i;
 						}
+					}
+					for (i=nbhsp-1;i>=0;i--) {
 						l=0;
 						for (y=0;y<16;y++)
 						for (x=0;x<16;x++) {
@@ -810,7 +812,6 @@ enum e_module {
 							l++;
 						}
 					}
-					lastsp=0;
 
 					if (igroup==0) {
 						/* first group colors initialised outside rastamix */
