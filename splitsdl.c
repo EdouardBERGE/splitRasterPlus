@@ -344,7 +344,7 @@ enum e_module {
 	int winx,winy;
 	int redo=2,redraw=1,reset=1;
 	/*-----------*/
-	struct s_png_info *photo;
+	struct s_png_info *photo=NULL;
 	struct s_raw_info rawinfo={0};
 	int i,j,l,m,n,v;
 	int *cptpalette;
@@ -409,28 +409,87 @@ enum e_module {
 	/* ergo */
 	int touchfloyd=0, touchsharp=0, touchcontrast=0, touchlevel=0, touchmask=0;
 
-	strcpy(sprfilename,filename);
-	TxtReplace(sprfilename,".png",".spr",0);
-	strcpy(xmlfilename,filename);
-	TxtReplace(xmlfilename,".png",".xml",0);
-	sprintf(cprasmfilename,"%scpr",filename);
-	TxtReplace(cprasmfilename,".pngcpr","cpr.asm",0);
-	sprintf(previewfilename,"%spreview",filename);
-	TxtReplace(previewfilename,".pngpreview","preview.png",0);
-	strcpy(asmfilename,filename);
-	TxtReplace(asmfilename,".png",".asm",0);
-	strcpy(scrfilename1,filename);
-	TxtReplace(scrfilename1,".png",".sc1",0);
-	strcpy(scrfilename2,filename);
-	TxtReplace(scrfilename2,".png",".sc2",0);
+	if (strstr(filename,"png")) {
+		strcpy(sprfilename,filename);
+		TxtReplace(sprfilename,".png",".spr",0);
+		strcpy(xmlfilename,filename);
+		TxtReplace(xmlfilename,".png",".xml",0);
+		sprintf(cprasmfilename,"%scpr",filename);
+		TxtReplace(cprasmfilename,".pngcpr","cpr.asm",0);
+		sprintf(previewfilename,"%spreview",filename);
+		TxtReplace(previewfilename,".pngpreview","preview.png",0);
+		strcpy(asmfilename,filename);
+		TxtReplace(asmfilename,".png",".asm",0);
+		strcpy(scrfilename1,filename);
+		TxtReplace(scrfilename1,".png",".sc1",0);
+		strcpy(scrfilename2,filename);
+		TxtReplace(scrfilename2,".png",".sc2",0);
+		photo=PNGRead24(filename);
+		if (!photo) {
+			logerr("cannot read PNG");
+			exit(ABORT_ERROR);
+		}
+		loginfo("PNG image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
+		if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
+			logerr("PNG image must be RGB without transparency",filename);
+			exit(ABORT_ERROR);
+		}
+	}
+	if (strstr(filename,"bmp")) {
+		unsigned char *bpixels;
+		int bwidth, bheight;
+		strcpy(sprfilename,filename);
+		TxtReplace(sprfilename,".bmp",".spr",0);
+		strcpy(xmlfilename,filename);
+		TxtReplace(xmlfilename,".bmp",".xml",0);
+		sprintf(cprasmfilename,"%scpr",filename);
+		TxtReplace(cprasmfilename,".bmpcpr","cpr.asm",0);
+		sprintf(previewfilename,"%spreview",filename);
+		TxtReplace(previewfilename,".bmppreview","preview.png",0);
+		strcpy(asmfilename,filename);
+		TxtReplace(asmfilename,".bmp",".asm",0);
+		strcpy(scrfilename1,filename);
+		TxtReplace(scrfilename1,".bmp",".sc1",0);
+		strcpy(scrfilename2,filename);
+		TxtReplace(scrfilename2,".bmp",".sc2",0);
 
-        photo=PNGRead24(filename);
-        if (!photo) logerr("ERR");
-        loginfo("PNG image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
-        if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
-                logerr("PNG image must be RGB without transparency",filename);
-                exit(ABORT_ERROR);
-        }
+		if (loadBMP(filename,&bpixels,&bwidth,&bheight)) {
+			logerr("cannot read BMP");
+			exit(ABORT_ERROR);
+		}
+
+		photo=calloc(sizeof(struct s_png_info),1);
+		photo->color_type=PNG_COLOR_TYPE_RGB;
+		photo->width=bwidth;
+		photo->height=bheight;
+		photo->data=MemMalloc(bwidth*bheight*3);
+		// from RGBA to RGB
+		for (l=0;l<bwidth*bheight;l++) {
+			bpixels[l*3+0]=bpixels[l*4+0];
+			bpixels[l*3+1]=bpixels[l*4+1];
+			bpixels[l*3+2]=bpixels[l*4+2];
+		}
+		for (l=0;l<bheight;l++) {
+			memcpy(photo->data+bwidth*3*l,bpixels+bwidth*3*(bheight-1-l),bwidth*3);
+		}
+		MemFree(bpixels);
+
+		if (!photo) {
+			logerr("cannot read BMP");
+			exit(ABORT_ERROR);
+		}
+		loginfo("PNG image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
+		if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
+			logerr("PNG image must be RGB without transparency",filename);
+			exit(ABORT_ERROR);
+		}
+	}
+
+	if (!photo) {
+		logerr("Please use .bmp or .png files...");
+		exit(ABORT_ERROR);
+	}
+
         if (photo->width!=384 || photo->height>273 || photo->height<16) {
 				float xmul;
 				int newypict=272;
@@ -2678,11 +2737,12 @@ void Usage()
 	#undef FUNC
 	#define FUNC "Usage"
 	
-	printf("%.*s.exe v8.0 / Edouard BERGE 2016 (build 2024-04)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
+	printf("%.*s.exe v9.0 / Edouard BERGE 2016 (build 2024-05)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
+	printf("BMP loader by https://github.com/phm97\n");
 	printf("--- this software is designed to run with colorful images, avoid conversion from Atari/Amiga ---\n");
 	printf("           introducing for the first time ASS technology (Amstrad Split Solver)\n");
 	printf("\n");
-	printf("USAGE: splitsdl.exe picture.png\n");
+	printf("USAGE: splitsdl.exe picture.png (or bmp files)\n");
 	printf("\n");	
 	printf("input file must be PNG with 384 pixels width (mode 1 ratio) and from 16 to 273 pixels height\n");
 	printf("if the picture does not fit required size, a crappy resize will be done, AVOID THIS!\n");
