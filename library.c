@@ -3915,9 +3915,13 @@ FILE *FileOpen(char *filename, char *opening_type)
 			return curfile->file_id;
 		}
 	}
+#ifdef OS_WIN
 _set_fmode(_O_BINARY);	
+#endif
 	curfile->file_id=fopen(filename,opening_type);
+#ifdef OS_WIN
 _set_fmode(_O_BINARY);	
+#endif
 	if (!curfile->file_id)
 	{
 		if (errno==EMFILE) {
@@ -4312,7 +4316,9 @@ int FileReadBinary(char *filename,char *data,int n)
 	int nn;
 	
 	last_id=FileOpen(filename,"r");
+#ifdef OS_WIN
 _set_fmode(_O_BINARY);
+#endif
 	if (data==NULL)
 	{
 		FileClose(last_id);
@@ -4363,7 +4369,9 @@ int FileWriteBinary(char *filename,char *data,int n)
 	int nn;
 	
 	last_id=FileOpen(filename,"a+");
+#ifdef OS_WIN
 _set_fmode(_O_BINARY);	
+#endif
 	if (data!=NULL)
 	{	
 		nn=fwrite(data,1,n,last_id);
