@@ -335,7 +335,6 @@ initial release v001:
 
 #include<stddef.h>
 #include<stdint.h>
-#include<unistd.h>
 #include<setjmp.h>
 
 #include<string.h>
@@ -435,7 +434,11 @@ false=0,
 true
 };
 
+#ifndef OS_WIN
 extern char **environ;
+#else
+	char **environ=NULL;
+	#endif
 
 #define INTERNAL_ERROR 7
 #define ABORT_ERROR 1
@@ -799,6 +802,7 @@ void _internal_put2log(char *logtype, char *cursource, int curline, char *curfun
 void CSVFreeFields(char **fields);
 #define FreeFields(fields) CSVFreeFields(fields)
 
+#ifndef OS_WIN
 mode_t FileGetMode(char *filename);
 #define FileIsSocket(filename) ((FileGetMode(filename) & S_IFSOCK)==S_IFSOCK)
 #define FileIsLink(filename) ((FileGetMode(filename) & S_IFLNK)==S_IFLNK)
@@ -807,7 +811,10 @@ mode_t FileGetMode(char *filename);
 #define FileIsDir(filename) ((FileGetMode(filename) & S_IFDIR)==S_IFDIR)
 #define FileIsCharacterDevice(filename) ((FileGetMode(filename) & S_IFCHR)==S_IFCHR)
 #define FileIsFifo(filename) ((FileGetMode(filename) & S_IFIFO)==S_IFIFO)
-
+#else
+	#define FileIsDir(filename) printf(filename)
+#define FileIsRegular(filename) printf(filename)
+#endif
 long long FileGetSize(char *filename);
 char **_internal_DirReadAllGlob(char *dirname,int globflag,int recurseflag,int sortflag);
 #define DirReadEntry(dirname) _internal_DirReadGlob(dirname,0,0)
@@ -3908,8 +3915,9 @@ FILE *FileOpen(char *filename, char *opening_type)
 			return curfile->file_id;
 		}
 	}
-	
+_set_fmode(_O_BINARY);	
 	curfile->file_id=fopen(filename,opening_type);
+_set_fmode(_O_BINARY);	
 	if (!curfile->file_id)
 	{
 		if (errno==EMFILE) {
@@ -4304,7 +4312,7 @@ int FileReadBinary(char *filename,char *data,int n)
 	int nn;
 	
 	last_id=FileOpen(filename,"r");
-
+_set_fmode(_O_BINARY);
 	if (data==NULL)
 	{
 		FileClose(last_id);
@@ -4355,6 +4363,7 @@ int FileWriteBinary(char *filename,char *data,int n)
 	int nn;
 	
 	last_id=FileOpen(filename,"a+");
+_set_fmode(_O_BINARY);	
 	if (data!=NULL)
 	{	
 		nn=fwrite(data,1,n,last_id);
@@ -4784,53 +4793,7 @@ struct stat *FileGetStat(char *filename)
 {
 	#undef FUNC
 	#define FUNC "FileGetStat"
-	struct stat *filestat;
-#ifdef OS_WIN
-	struct _stat winstat;
-#endif
-
-	if (!filename)
-	{
-		logerr("filename must not be NULL");
-		exit(ABORT_ERROR);
-	}
-	/* check after by the system but... */
-	if (strnlen(filename,PATH_MAX)==PATH_MAX)
-	{
-		logerr("cannot open this file because the argument size is bigger than PATH_MAX (%d)",PATH_MAX);
-		logerr("[%s]",filename);
-		exit(ABORT_ERROR);
-	}
-	
-	filestat=MemCalloc(sizeof(struct stat));
-#ifdef OS_WIN
-	if (_stat(filename,&winstat)!=0)
-#else	
-	if (stat(filename,filestat) && errno!=ENOENT)
-#endif
-	{
-		logerr("stat %s failed",filename);
-		switch (errno)
-		{
-			case EACCES:logerr("Search permission is denied for one of the directories in the path prefix of path.");break;
-			case EBADF:logerr("filedes is bad.");break;
-			case EFAULT:logerr("Bad address.");break;
-			case ELOOP:logerr("Too many symbolic links encountered while traversing the path.");break;
-			case ENAMETOOLONG:logerr("File name too long.");break;
-			case ENOMEM:logerr("Out of memory (i.e. kernel memory).");break;
-			case ENOTDIR:logerr("A component of the path is not a directory.");break;
-			default:logerr("Unknown error %d during stat: %s",errno,strerror(errno));
-		}
-		exit(ABORT_ERROR);
-	}
-#ifdef OS_WIN
-	filestat->st_size=winstat.st_size;
-	filestat->st_mode=winstat.st_mode;
-	filestat->st_atime=winstat.st_atime; /* last access       */
-	filestat->st_mtime=winstat.st_mtime; /* last modification */
-	filestat->st_ctime=winstat.st_ctime; /* time of creation  */
-#endif
-	return filestat;
+	return NULL;
 }
 
 /***
@@ -4843,13 +4806,8 @@ long long FileGetSize(char *filename)
 {
 	#undef FUNC
 	#define FUNC "FileGetSize"
-	struct stat *filestat;
-	long long nn;
+	long long nn=0;
 	
-	filestat=FileGetStat(filename);
-	nn=filestat->st_size;
-	MemFree(filestat);
-	logdebug("size of %s = %d (%dkb)",filename,nn,nn/1024);
 	return nn;
 }
 /***
@@ -4862,13 +4820,7 @@ mode_t FileGetMode(char *filename)
 {
 	#undef FUNC
 	#define FUNC "FileGetMode"
-	struct stat *filestat;
-	mode_t nn;
-	
-	filestat=FileGetStat(filename);
-	nn=filestat->st_mode;
-	MemFree(filestat);
-	return nn;
+	return 0;
 }
 
 /***

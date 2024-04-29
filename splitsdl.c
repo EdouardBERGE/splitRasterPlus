@@ -283,7 +283,8 @@ unsigned char clipped[384]; // HSP index +1 ou zero si rien
 int adr;
 };
 
-
+//#define DBG printf("line %d\n",__LINE__);
+#define DBG ;
 
 int compare_hsp(const void * a, const void * b)
 {
@@ -452,7 +453,7 @@ enum e_module {
 		TxtReplace(scrfilename1,".bmp",".sc1",0);
 		strcpy(scrfilename2,filename);
 		TxtReplace(scrfilename2,".bmp",".sc2",0);
-
+printf("load BMP file\n");
 		if (loadBMP(filename,&bpixels,&bwidth,&bheight)) {
 			logerr("cannot read BMP");
 			exit(ABORT_ERROR);
@@ -462,6 +463,7 @@ enum e_module {
 		photo->color_type=PNG_COLOR_TYPE_RGB;
 		photo->width=bwidth;
 		photo->height=bheight;
+		photo->bit_depth=8;
 		photo->data=MemMalloc(bwidth*bheight*3);
 		// from RGBA to RGB
 		for (l=0;l<bwidth*bheight;l++) {
@@ -478,7 +480,7 @@ enum e_module {
 			logerr("cannot read BMP");
 			exit(ABORT_ERROR);
 		}
-		loginfo("PNG image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
+		loginfo("BMP image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
 		if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
 			logerr("PNG image must be RGB without transparency",filename);
 			exit(ABORT_ERROR);
@@ -744,6 +746,7 @@ enum e_module {
 				}
 				}
 			}
+	DBG
 			/************************************ compute GFX colorz ***********************************/
 			if (computeglobal) {
 				unsigned char *newpix;
@@ -804,6 +807,7 @@ enum e_module {
 						if (wasmoving) wasmoving=1+curhsp;
 					}
 				}
+	DBG
 
 				/* on découpe en groupes selon l'espacement vertical entre les sprites hards */
 				group=0;
@@ -854,7 +858,7 @@ enum e_module {
 						rawinfo.nbcolor++;
 					}
 					/* on met à jour le clipped mask de l'écran */
-					for (i=0;i<nbhsp;i++) {
+					for (i=lastsp=0;i<nbhsp;i++) {
 						if (hsp[i].group==igroup) {
 							memcpy(hsp[i].palette,tmppalette,sizeof(tmppalette));
 							lasty=hsp[i].y+16;
@@ -880,6 +884,7 @@ enum e_module {
 							x++;
 						}
 					} else {
+	DBG
 						/* insert colors in rastamix */
 						asicad=0x6422;
 						x=0;
@@ -893,8 +898,10 @@ enum e_module {
 						}
 					}
 					previouslasty=lasty;
+	DBG
 					ImageRAWFreeStruct(&rawinfo);
 				}
+	DBG
 
 				/*************************************************************************************************************
 				**************************************************************************************************************
@@ -914,6 +921,7 @@ enum e_module {
 					scanline[j*3+1]=(photo->data[j*6+1]+photo->data[j*6+4])*0.5;
 					scanline[j*3+2]=(photo->data[j*6+2]+photo->data[j*6+5])*0.5;
 				}
+	DBG
 				/*****************************************************************
 					   on élimine les données cachées par les sprites hard
 				*****************************************************************/
@@ -937,6 +945,7 @@ enum e_module {
 				refl=rastamix[0].l=colorz_create_palette(clippedscanline,sizeclip,rastamix[0].palette,0);
 				rastamix[1].l=refl;
 				memcpy(rastamix[1].palette,rastamix[0].palette,sizeof(rastamix[0].palette));
+	DBG
 
 				/****************************************************************************************
 						  l i g n e s     s u i v a n t e s . . .
@@ -957,6 +966,7 @@ enum e_module {
 							sizeclip++;
 						}
 					}
+	DBG
 
 					/****************************************************************************************
 						 on fait une première passe pour avoir une palette complète dès la première ligne
@@ -994,6 +1004,7 @@ enum e_module {
 					/****************************************************************************************
 												A F T E R        R E B O O T
 					****************************************************************************************/
+	DBG
 
 					/* on s'fait pas chier, on garde les 12 couleurs les plus utilisées avec la palette de la ligne précédente */
 					memset(cptrefpal,0,sizeof(cptrefpal));

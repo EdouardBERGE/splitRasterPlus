@@ -90,28 +90,6 @@ initial release v001:
 #define Z_DEFAULT_COMPRESSION 7
 #endif
 
-typedef int   v4si __attribute__ ((vector_size (4*sizeof(int))));
-typedef int   v4ui __attribute__ ((vector_size (4*sizeof(unsigned short int))));
-typedef float v4df __attribute__ ((vector_size (4*sizeof(float))));
-
-union i4vector
-{
-        v4si v;
-        int i[4];
-};
-
-union u4vector
-{
-        v4ui v;
-        unsigned short int i[4];
-};
-
-union f4vector
-{
-        v4df v;
-        float f[4];
-};
-
 /*
 	Thread management functions
 */
@@ -2985,9 +2963,9 @@ static void bmpReadPixels8( FILE *file, unsigned char *dest, bmp_palette_element
 static void bmpReadPixels4( FILE *file, unsigned char *dest, bmp_palette_element_t *palette, int w, int h )
 {
 	int size = (w + 1)/2;			/* byte alignment */
-	unsigned char row_stride[size];	/* not C90 but convenient here */
 	unsigned char index, byte, *p;
 	unsigned char bitmask = 0x0F;	/* bit mask : 00001111 */
+	unsigned char row_stride[8192];	/* not C90 but convenient here */
 	
 	p = dest;
 	for( int i=0; i < h; i++ ) {
@@ -3008,7 +2986,7 @@ static void bmpReadPixels4( FILE *file, unsigned char *dest, bmp_palette_element
 static void bmpReadPixels1( FILE *file, unsigned char *dest, bmp_palette_element_t *palette, int w, int h )
 {
 	int size = (w + 7) / 8;			/* byte alignment */
-	unsigned char row_stride[size];	/* not C90 but convenient here */
+	unsigned char row_stride[8192];	/* not C90 but convenient here */
 	unsigned char index, byte, *p;
 	unsigned char bitmask = 0x01;	/* bit mask : 00000001 */
 	int bit;
@@ -3041,9 +3019,10 @@ int loadBMP( const char *filename, unsigned char **data, int *width, int *height
 	bmp_palette_element_t *palette = NULL;
 	unsigned char *buf;
 	
-	file = fopen( filename, "rb");
+	file = fopen( filename, "r");
 #ifdef OS_WIN
-	_setmode(_fileno(last_id), _O_BINARY );
+	_set_fmode(_O_BINARY);
+	_setmode(_fileno(file), _O_BINARY );
 #endif
 	if( !file ) {
 		printf("Error : could not open file %s\n", filename );
