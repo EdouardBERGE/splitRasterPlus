@@ -1,0 +1,12 @@
+LIBCFG=/Users/jeromelesaux/download/code/libs/bin
+CFLAGS=`$(LIBCFG)/libpng-config --static --cflags` -I/Users/jeromelesaux/Downloads/code/libs/include -D_THREAD_SAFE -mmacosx-version-min=10.11 -arch x86_64 -arch arm64
+LDFLAGS=`$(LIBCFG)/libpng-config --static --ldflags` -L/Users/jeromelesaux/Downloads/code/libs/lib /Users/jeromelesaux/Downloads/code/libs/lib/libSDL2.a -lm -liconv -Wl,-framework,CoreAudio -Wl,-framework,AudioToolbox -Wl,-weak_framework,CoreHaptics -Wl,-weak_framework,GameController -Wl,-framework,ForceFeedback -lobjc -Wl,-framework,CoreVideo -Wl,-framework,Cocoa -Wl,-framework,Carbon -Wl,-framework,IOKit -Wl,-weak_framework,QuartzCore -Wl,-weak_framework,Metal -mmacosx-version-min=10.11 -arch x86_64 -arch arm64
+
+splitsdl : splitsdl.c library.c libgfx.c
+	cc splitsdl.c -DOS_MACOS  -O2 -pthread -lm  -lSDL2 -lpng -o splitsdl $(LDFLAGS) $(CFLAGS) -O2 -w
+
+
+
+
+
+

@@ -323,13 +323,14 @@ initial release v001:
 #endif
 
 /* default is a Linux host */
-#ifndef OS_WIN
-#define OS_LINUX 1
-#define OS_AIX 1
-#ifdef OS_LINUX
-#undef OS_AIX
-#endif
-#endif
+// #ifndef OS_WIN
+// #define OS_LINUX 1
+// #define OS_AIX 1
+// #ifdef OS_LINUX
+// #undef OS_AIX
+// #endif
+// #endif
+
 
 /* includes for all OS */
 
@@ -373,6 +374,19 @@ initial release v001:
 #include<sys/timeb.h>
 #define ARG_MAX 131072
 #endif
+
+#ifdef OS_MACOS
+#include<time.h>
+#include<sys/wait.h>
+#include<signal.h>
+#include<limits.h>
+#include<tgmath.h>
+#include<pthread.h>
+#include<sys/types.h>
+#include<sys/timeb.h>
+#define ARG_MAX 131072
+#endif
+
 
 #ifdef OS_WIN
 #include<errno.h>
@@ -2464,16 +2478,6 @@ unsigned long ChronoGetNanoSecond()
 		return 0;
 	}
 }
-void NanoSleep(double nanotime)
-{
-	#undef FUNC
-	#define FUNC "NanoSleep"
-
-	struct timespec req;
-	req.tv_sec=floor(nanotime/1000000000.0);;
-	req.tv_nsec=nanotime-req.tv_sec*1000000000.0;;
-	clock_nanosleep(CLOCK_REALTIME,0,&req,NULL);
-}
 #endif
 
 #define ChronoGetIntermediate ChronoStop
@@ -3985,7 +3989,7 @@ void FileSeekBinary(char *filename,int pos, int st)
 	switch (st) {
 		case SEEK_SET: curfile->curpos=pos; break;
 		case SEEK_CUR: curfile->curpos+=pos; break;
-		case SEEK_END: logerr("TODO§§§"); break;
+		case SEEK_END: logerr("TODOï¿½ï¿½ï¿½"); break;
 		default:logerr("unknown SEEK mode!");exit(INTERNAL_ERROR);
 	}
 }
@@ -6845,7 +6849,7 @@ struct s_xml_field *XMLLoadFile(char *filename)
 											}
 											/* is there a namespace in the attribute name? */
 											if (c==':') {
-												/* manque un contrôle sur le double ':' */
+												/* manque un contrï¿½le sur le double ':' */
 												namespacedefinitiontoggled=1;
 											}
 										} else { /* parsing attribute value */
