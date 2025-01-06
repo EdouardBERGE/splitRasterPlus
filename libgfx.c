@@ -2037,6 +2037,7 @@ struct s_png_info * _internal_PNGRead(char *filename, int want8, int wantALPHA)
 				pixel_size=3;
 			}
 			png_set_palette_to_rgb(png_ptr);
+			png_info->bit_depth=8;
 			break;
 		case PNG_COLOR_TYPE_GRAY:
 				pixel_size=3;
