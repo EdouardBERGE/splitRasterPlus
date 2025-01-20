@@ -5713,7 +5713,7 @@ char *ConvertDate(char *rawdate,char *input_mask, char *output_mask)
 
 	char newdate[256];
 	char tmptext[16];
-	char tmpdate[21];
+	char tmpdate[128];
 	int day,month,year,hour,minute,second;
 	int i,l;
 	

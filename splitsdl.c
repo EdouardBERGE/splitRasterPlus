@@ -80,6 +80,112 @@ void ObjectArrayAddValue(void **zearray, int *nbfields, int *maxfields, void *ze
         memcpy(dst,zeobject,object_size);
 }
 
+void setBayer(float *bayer, int *x, int *y, float coef) {
+	int i;
+
+	switch (*x) {
+		default:
+		case 2: switch (*y) {
+				default:*y=2;
+				case 2:
+					bayer[0]=0; bayer[1]=3;
+					bayer[2]=2; bayer[3]=1;
+					break;
+				case 4:
+					bayer[0]=0; bayer[1]=3;
+					bayer[2]=4; bayer[3]=7;
+					bayer[4]=2; bayer[5]=1;
+					bayer[6]=6; bayer[7]=5;
+					break;
+				case 8:
+					bayer[0]=0; bayer[1]=3;
+					bayer[2]=8; bayer[3]=11;
+					bayer[4]=4; bayer[5]=7;
+					bayer[6]=12; bayer[7]=15;
+					bayer[8]=2; bayer[9]=1;
+					bayer[10]=10; bayer[11]=9;
+					bayer[12]=6; bayer[13]=5;
+					bayer[14]=14; bayer[15]=13;
+					break;
+			}
+			break;
+		case 3: /* 3x3 */
+			*y=3;
+			bayer[0]=0; bayer[1]=5; bayer[2]=2;
+			bayer[3]=3; bayer[4]=8; bayer[5]=7;
+			bayer[6]=6; bayer[7]=1; bayer[8]=4;
+			break;
+		case 4: switch (*y) {
+				default:*y=2;
+				case 2:
+				       	bayer[0]=0; bayer[1]=4; bayer[2]=2; bayer[3]=6;
+					bayer[4]=3; bayer[5]=7; bayer[6]=1; bayer[7]=5;
+					break;
+				case 4:
+				       	bayer[0]=0;   bayer[1]=12; bayer[2]=3;  bayer[3]=15;
+					bayer[4]=8;   bayer[5]=4;  bayer[6]=11; bayer[7]=7;
+				       	bayer[8]=2;   bayer[9]=14; bayer[10]=1; bayer[11]=13;
+					bayer[12]=10; bayer[13]=6; bayer[14]=9; bayer[15]=5;
+					break;
+				case 8:
+				       	bayer[0]=0;   bayer[1]=12;  bayer[2]=3;   bayer[3]=15;
+					bayer[4]=16;  bayer[5]=28;  bayer[6]=19;  bayer[7]=31;
+				       	bayer[8]=8;   bayer[9]=4;   bayer[10]=11; bayer[11]=7;
+					bayer[12]=24; bayer[13]=20; bayer[14]=27; bayer[15]=23;
+				       	bayer[16]=2;  bayer[17]=14; bayer[18]=1;  bayer[19]=13;
+					bayer[20]=18; bayer[21]=30; bayer[22]=17; bayer[23]=29;
+				       	bayer[24]=10; bayer[25]=6;  bayer[26]=9;  bayer[27]=5;
+					bayer[28]=26; bayer[29]=22; bayer[30]=25; bayer[31]=21;
+					break;
+			}
+			break;
+		case 5: switch (*y) {
+				default: *y=3;
+				case 3:
+					bayer[0]=0;  bayer[1]=12; bayer[2]=7;   bayer[3]=3;   bayer[4]=9;
+					bayer[5]=14; bayer[6]=8;  bayer[7]=1;   bayer[8]=5;   bayer[9]=11;
+					bayer[10]=6; bayer[11]=4; bayer[12]=10; bayer[13]=13; bayer[14]=2;
+					break;
+				case 5: /* manually tweeked */
+					bayer[0]=0;   bayer[1]=11;  bayer[2]=5;   bayer[3]=22;  bayer[4]=15;
+					bayer[5]=16;  bayer[6]=1;   bayer[7]=12;  bayer[8]=6;   bayer[9]=23;
+					bayer[10]=8;  bayer[11]=17; bayer[12]=2 ; bayer[13]=13; bayer[14]=7 ;
+					bayer[15]=20; bayer[16]=9;  bayer[17]=18; bayer[18]=3;  bayer[19]=14;
+					bayer[20]=24; bayer[21]=21; bayer[22]=10; bayer[23]=19; bayer[24]=4 ;
+					break;
+			}
+			break;
+		case 8: switch (*y) {
+				default:*y=2;
+				case 2:
+				       	bayer[0]=0;   bayer[1]=8;  bayer[2]=4;   bayer[3]=12;  bayer[4]=2;  bayer[5]=10;  bayer[6]=6;  bayer[7]=14;
+				       	bayer[8]=3;   bayer[9]=11; bayer[10]=7;  bayer[11]=15; bayer[12]=1; bayer[13]=9;  bayer[14]=5; bayer[15]=13;
+					break;
+				case 4:
+				       	bayer[0]=0;   bayer[1]=16;  bayer[2]=8;   bayer[3]=24;  bayer[4]=2;   bayer[5]=18;  bayer[6]=10; bayer[7]=26;
+				       	bayer[8]=12;  bayer[9]=28;  bayer[10]=4;  bayer[11]=20; bayer[12]=14; bayer[13]=30; bayer[14]=6; bayer[15]=22;
+				       	bayer[16]=3;  bayer[17]=19; bayer[18]=11; bayer[19]=27; bayer[20]=1;  bayer[21]=17; bayer[22]=9; bayer[23]=25;
+				       	bayer[24]=15; bayer[25]=31; bayer[26]=7;  bayer[27]=23; bayer[28]=13; bayer[29]=29; bayer[30]=5; bayer[31]=21;
+					break;
+				case 8:
+				       	bayer[0]=0;   bayer[1]=48;  bayer[2]=12;  bayer[3]=60;  bayer[4]=3;   bayer[5]=51;  bayer[6]=15;  bayer[7]=63;
+				       	bayer[8]=32;  bayer[9]=16;  bayer[10]=44; bayer[11]=28; bayer[12]=35; bayer[13]=19; bayer[14]=47; bayer[15]=31;
+				       	bayer[16]=8;  bayer[17]=56; bayer[18]=4;  bayer[19]=52; bayer[20]=11; bayer[21]=59; bayer[22]=7;  bayer[23]=55;
+				       	bayer[24]=40; bayer[25]=24; bayer[26]=36; bayer[27]=20; bayer[28]=43; bayer[29]=27; bayer[30]=39; bayer[31]=23;
+				       	bayer[32]=2;  bayer[33]=50; bayer[34]=14; bayer[35]=62; bayer[36]=1;  bayer[37]=49; bayer[38]=13; bayer[39]=61;
+				       	bayer[40]=34; bayer[41]=18; bayer[42]=46; bayer[43]=30; bayer[44]=33; bayer[45]=17; bayer[46]=45; bayer[47]=29;
+				       	bayer[48]=10; bayer[49]=58; bayer[50]=6;  bayer[51]=54; bayer[52]=9;  bayer[53]=57; bayer[54]=5;  bayer[55]=53;
+				       	bayer[56]=42; bayer[57]=26; bayer[58]=38; bayer[59]=22; bayer[60]=41; bayer[61]=25; bayer[62]=37; bayer[63]=21;
+					break;
+			}
+			break;
+	}
+
+	/* normer et centrer sur zéro */
+	for (i=0;i<(*x)*(*y);i++) bayer[i]=(bayer[i]/((*x)*(*y))-0.5)*coef+1.0;
+}
+
+
 /* super cube things */
 struct s_color_box
 {
@@ -408,7 +514,26 @@ enum e_module {
 	int keycursorx=0,keycursory=0;
 	int currentpen=5;
 	/* ergo */
-	int touchfloyd=0, touchsharp=0, touchcontrast=0, touchlevel=0, touchmask=0;
+	int touchfloyd=0, touchsharp=0, touchcontrast=0, touchlevel=0, touchmask=0, touchbayer=0;
+
+	/* bayer matrix dithering */
+	unsigned int *bayerPanel;
+	float *bayer;
+	int bx=4,by=8; /* 4x8 as default */
+	int bayerEnable=1; // default
+	int bayerN=6;
+
+	bayer=malloc(64*sizeof(float));
+	//setBayer(&bayer,&bx,&by,bayerCoef);
+	//
+	photo=PNGRead32("bayerFloyd.png");
+	if (!photo || photo->width!=512 || photo->height!=32) {
+		logerr("bayerFloyd.png is missing or corrupted, please reinstall...");
+		exit(ABORT_ERROR);
+	} else {
+		bayerPanel=(unsigned int *)photo->data;
+		MemFree(photo);
+	}
 
 	if (strstr(filename,"png")) {
 		strcpy(sprfilename,filename);
@@ -432,7 +557,7 @@ enum e_module {
 		}
 		loginfo("PNG image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
 		if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
-			logerr("PNG image must be RGB without transparency",filename);
+			logerr("PNG image [%s] must be RGB without transparency",filename);
 			exit(ABORT_ERROR);
 		}
 	}
@@ -567,6 +692,7 @@ printf("load BMP file\n");
 			if ((xmlparam=XMLGetField(resource,"keycursorx"))!=NULL) keycursorx=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
 			if ((xmlparam=XMLGetField(resource,"keycursory"))!=NULL) keycursory=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
 			if ((xmlparam=XMLGetField(resource,"floyd"))!=NULL) floydcoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+			if ((xmlparam=XMLGetField(resource,"bayerN"))!=NULL) bayerN=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
 			if ((xmlparam=XMLGetField(resource,"sharp"))!=NULL) sharpnesscoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
 			if ((xmlparam=XMLGetField(resource,"contrast"))!=NULL) contrastcoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
 			if ((xmlparam=XMLGetField(resource,"levelup"))!=NULL) levelup=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
@@ -782,6 +908,31 @@ printf("load BMP file\n");
 				compute=0;
 				adr=numligne=0; // amstrad memory
 
+				if (bayerEnable) {
+					switch (bayerN) {
+						default:
+						case 0:bx=2;by=2;break;
+						case 1:bx=2;by=4;break;
+						case 2:bx=2;by=8;break;
+						case 3:bx=3;by=3;break;
+						case 4:bx=4;by=2;break;
+						case 5:bx=4;by=4;break;
+						case 6:bx=4;by=8;break;
+						case 7:bx=5;by=3;break;
+						case 8:bx=5;by=5;break;
+						case 9:bx=8;by=2;break;
+						case 10:bx=8;by=4;break;
+						case 11:bx=8;by=8;break;
+					}
+					setBayer(bayer,&bx,&by,floydcoef);
+				}
+	/*
+	printf("------- bayer %dx%d\n",bx,by);
+	for (i=0;i<by;i++) {
+		for (j=0;j<bx;j++) printf("%.2f ",bayer[i*bx+j]);
+		printf("\n");
+	}
+	*/
 				/********************************************************
 						  c o m p u t e   H S P   c o l o r s
 				********************************************************/
@@ -1057,7 +1208,7 @@ printf("load BMP file\n");
 				/*******************************************************************************************************
 				********************************************************************************************************
 				
-				           T R A V A I L    G E N E R A L    S U R    T O U T E S    L E S    L  I G N E S
+				           T R A V A I L    G E N E R A L    S U R    T O U T E S    L E S    L I G N E S
 						   
 				********************************************************************************************************
 				*******************************************************************************************************/
@@ -1158,9 +1309,16 @@ printf("load BMP file\n");
 						/* on calcule le pixel écran même si il est caché à moitié par un sprite hard */
 						if (!rastamix[i].clipped[j*2] || !rastamix[i].clipped[j*2+1]) {
 							/* backup pixel */
-							or=scanfloyd[j*3+0];
-							ov=scanfloyd[j*3+1];
-							ob=scanfloyd[j*3+2];
+							if (!bayerEnable) {
+								or=scanfloyd[j*3+0];
+								ov=scanfloyd[j*3+1];
+								ob=scanfloyd[j*3+2];
+							} else {
+								/* apply bayer matrix */
+								or=(float)(photo->data[j*6+0+i*384*3]+photo->data[j*6+3+i*384*3])*0.5*bayer[(i%by)*bx+(j%bx)];
+								ov=(float)(photo->data[j*6+1+i*384*3]+photo->data[j*6+4+i*384*3])*0.5*bayer[(i%by)*bx+(j%bx)];
+								ob=(float)(photo->data[j*6+2+i*384*3]+photo->data[j*6+5+i*384*3])*0.5*bayer[(i%by)*bx+(j%bx)];
+							}
 							/* le pixel dont on va récupérer l'indice dans la palette est le définitif */
 							c=__GetIDXFromPalette(rastamix[i].palette,or,ov,ob,rastamix[i].l);
 							/********************
@@ -1184,31 +1342,33 @@ printf("load BMP file\n");
 							preview[j*6+1+i*384*3]=preview[j*6+4+i*384*3]=rastamix[i].palette[c*3+1];
 							preview[j*6+2+i*384*3]=preview[j*6+5+i*384*3]=rastamix[i].palette[c*3+2];
 
-							qr=(or-rastamix[i].palette[c*3+0])*floydcoef;
-							qv=(ov-rastamix[i].palette[c*3+1])*floydcoef;
-							qb=(ob-rastamix[i].palette[c*3+2])*floydcoef;
-							/* pixel suivant prend 7/16 de l'erreur */
-							if (j<191) {
-								scanfloyd[j*3+0+3]+=qr*7/16;
-								scanfloyd[j*3+1+3]+=qv*7/16;
-								scanfloyd[j*3+2+3]+=qb*7/16;
-							}
-							if (i<269) {
-								/* pixel du dessous en retrait prend 3/16 de l'erreur */
-								if (j) {
-									scanfloyd[j*3+0-3+192*3]+=qr*3/16;
-									scanfloyd[j*3+1-3+192*3]+=qv*3/16;
-									scanfloyd[j*3+2-3+192*3]+=qb*3/16;
-								}
-								/* pixel immédiatement en dessous 5/16 de l'erreur */
-								scanfloyd[j*3+0+192*3]+=qr*5/16;
-								scanfloyd[j*3+1+192*3]+=qv*5/16;
-								scanfloyd[j*3+2+192*3]+=qb*5/16;
-								/* pixel dessous à droite 1/16 de l'erreur */
+							if (!bayerEnable) {
+								qr=(or-rastamix[i].palette[c*3+0])*floydcoef;
+								qv=(ov-rastamix[i].palette[c*3+1])*floydcoef;
+								qb=(ob-rastamix[i].palette[c*3+2])*floydcoef;
+								/* pixel suivant prend 7/16 de l'erreur */
 								if (j<191) {
-									scanfloyd[j*3+0+3+192*3]+=qr*1/16;
-									scanfloyd[j*3+1+3+192*3]+=qv*1/16;
-									scanfloyd[j*3+2+3+192*3]+=qb*1/16;
+									scanfloyd[j*3+0+3]+=qr*7/16;
+									scanfloyd[j*3+1+3]+=qv*7/16;
+									scanfloyd[j*3+2+3]+=qb*7/16;
+								}
+								if (i<269) {
+									/* pixel du dessous en retrait prend 3/16 de l'erreur */
+									if (j) {
+										scanfloyd[j*3+0-3+192*3]+=qr*3/16;
+										scanfloyd[j*3+1-3+192*3]+=qv*3/16;
+										scanfloyd[j*3+2-3+192*3]+=qb*3/16;
+									}
+									/* pixel immédiatement en dessous 5/16 de l'erreur */
+									scanfloyd[j*3+0+192*3]+=qr*5/16;
+									scanfloyd[j*3+1+192*3]+=qv*5/16;
+									scanfloyd[j*3+2+192*3]+=qb*5/16;
+									/* pixel dessous à droite 1/16 de l'erreur */
+									if (j<191) {
+										scanfloyd[j*3+0+3+192*3]+=qr*1/16;
+										scanfloyd[j*3+1+3+192*3]+=qv*1/16;
+										scanfloyd[j*3+2+3+192*3]+=qb*1/16;
+									}
 								}
 							}
 						} else {
@@ -1232,10 +1392,16 @@ printf("load BMP file\n");
 							int ihsp;
 							l=0;
 
-							/* on va récupérer la compensation moyenne à partir du pixel mode 0 */
-							qr=(scanfloyd[j*3+0]-(photo->data[j*6+0+i*384*3]+photo->data[j*6+3+i*384*3])*0.5)*0.5;
-							qv=(scanfloyd[j*3+1]-(photo->data[j*6+1+i*384*3]+photo->data[j*6+4+i*384*3])*0.5)*0.5;
-							qb=(scanfloyd[j*3+2]-(photo->data[j*6+2+i*384*3]+photo->data[j*6+5+i*384*3])*0.5)*0.5;
+							if (!bayerEnable) {
+								/* on va récupérer la compensation moyenne à partir du pixel mode 0 */
+								qr=(scanfloyd[j*3+0]-(photo->data[j*6+0+i*384*3]+photo->data[j*6+3+i*384*3])*0.5)*0.5;
+								qv=(scanfloyd[j*3+1]-(photo->data[j*6+1+i*384*3]+photo->data[j*6+4+i*384*3])*0.5)*0.5;
+								qb=(scanfloyd[j*3+2]-(photo->data[j*6+2+i*384*3]+photo->data[j*6+5+i*384*3])*0.5)*0.5;
+							} else {
+								qr=bayer[(i%by)*bx+(j%bx)];
+								qv=bayer[(i%by)*bx+(j%bx)];
+								qb=bayer[(i%by)*bx+(j%bx)];
+							}
 
 							/* à gauche */
 							ihsp=rastamix[i].clipped[j*2];
@@ -1246,15 +1412,19 @@ printf("load BMP file\n");
 								l=(y*16+x)*3; // le masque et les datas sont calés
 								if (ihsp<0 || ihsp>=nbhsp || l<0 || l>766) printf("ihsp=%d hx=%d hy=%d -> hsp.x=%d hsp.y=%d\n",ihsp,hsp[ihsp].x,hsp[ihsp].y,x,y);
 
-								c=__GetIDXFromPalette(hsp[ihsp].palette,photo->data[(j*2+i*384)*3+0]+qr, photo->data[(j*2+i*384)*3+1]+qv, photo->data[(j*2+i*384)*3+2]+qb,15);
+								if (!bayerEnable) c=__GetIDXFromPalette(hsp[ihsp].palette,photo->data[(j*2+i*384)*3+0]+qr, photo->data[(j*2+i*384)*3+1]+qv, photo->data[(j*2+i*384)*3+2]+qb,15);
+								else c=__GetIDXFromPalette(hsp[ihsp].palette,photo->data[(j*2+i*384)*3+0]*qr, photo->data[(j*2+i*384)*3+1]*qv, photo->data[(j*2+i*384)*3+2]*qb,15);
+
 								/* update preview cause we will need it for compensation of adjacent HSP */
 								preview[(j*2+i*384)*3+0]=hsp[ihsp].data[l++]=hsp[ihsp].palette[c*3+0];
 								preview[(j*2+i*384)*3+1]=hsp[ihsp].data[l++]=hsp[ihsp].palette[c*3+1];
 								preview[(j*2+i*384)*3+2]=hsp[ihsp].data[l]  =hsp[ihsp].palette[c*3+2];
 
-								nqr=photo->data[(j*2+i*384)*3+0]+qr-hsp[ihsp].palette[c*3+0];
-								nqv=photo->data[(j*2+i*384)*3+1]+qv-hsp[ihsp].palette[c*3+1];
-								nqb=photo->data[(j*2+i*384)*3+2]+qb-hsp[ihsp].palette[c*3+2];
+								if (!bayerEnable) {
+									nqr=photo->data[(j*2+i*384)*3+0]+qr-hsp[ihsp].palette[c*3+0];
+									nqv=photo->data[(j*2+i*384)*3+1]+qv-hsp[ihsp].palette[c*3+1];
+									nqb=photo->data[(j*2+i*384)*3+2]+qb-hsp[ihsp].palette[c*3+2];
+								}
 							}
 							/* à droite */
 							ihsp=rastamix[i].clipped[j*2+1];
@@ -1264,7 +1434,10 @@ printf("load BMP file\n");
 								y=i-hsp[ihsp].y;   // coord Y dans le sprite
 								l=(y*16+x)*3; // le masque et les datas sont calés
 								if (ihsp<0 || ihsp>=nbhsp || l<0 || l>766) printf("ihsp=%d hx=%d hy=%d -> hsp.x=%d hsp.y=%d\n",ihsp,hsp[ihsp].x,hsp[ihsp].y,x,y);
-								c=__GetIDXFromPalette(hsp[ihsp].palette,photo->data[(j*2+1+i*384)*3+0]+qr+nqr*0.5, photo->data[(j*2+1+i*384)*3+1]+qv+nqv*0.5, photo->data[(j*2+1+i*384)*3+2]+qb+nqb*0.5,15);
+
+								if (!bayerEnable) c=__GetIDXFromPalette(hsp[ihsp].palette,photo->data[(j*2+1+i*384)*3+0]+qr+nqr*0.5, photo->data[(j*2+1+i*384)*3+1]+qv+nqv*0.5, photo->data[(j*2+1+i*384)*3+2]+qb+nqb*0.5,15);
+								else c=__GetIDXFromPalette(hsp[ihsp].palette,photo->data[(j*2+1+i*384)*3+0]*qr, photo->data[(j*2+1+i*384)*3+1]*qv, photo->data[(j*2+1+i*384)*3+2]*qb,15);
+
 								/* update preview cause we will need it for compensation of adjacent HSP */
 								preview[(j*2+1+i*384)*3+0]=hsp[ihsp].data[l++]=hsp[ihsp].palette[c*3+0];
 								preview[(j*2+1+i*384)*3+1]=hsp[ihsp].data[l++]=hsp[ihsp].palette[c*3+1];
@@ -1274,32 +1447,35 @@ printf("load BMP file\n");
 								nqv+=photo->data[(j*2+1+i*384)*3+1]+qv-hsp[ihsp].palette[c*3+1];
 								nqb+=photo->data[(j*2+1+i*384)*3+2]+qb-hsp[ihsp].palette[c*3+2];
 							}
-							/* les pixels sont plus petits, la compensation l'est aussi! */
-							qr=nqr*floydcoef*0.5;
-							qv=nqv*floydcoef*0.5;
-							qb=nqb*floydcoef*0.5;
-							/* pixel suivant prend 7/16 de l'erreur */
-							if (j<191) {
-								scanfloyd[j*3+0+3]+=qr*7/16;
-								scanfloyd[j*3+1+3]+=qv*7/16;
-								scanfloyd[j*3+2+3]+=qb*7/16;
-							}
-							if (i<269) {
-								/* pixel du dessous en retrait prend 3/16 de l'erreur */
-								if (j) {
-									scanfloyd[j*3+0-3+192*3]+=qr*3/16;
-									scanfloyd[j*3+1-3+192*3]+=qv*3/16;
-									scanfloyd[j*3+2-3+192*3]+=qb*3/16;
-								}
-								/* pixel immédiatement en dessous 5/16 de l'erreur */
-								scanfloyd[j*3+0+192*3]+=qr*5/16;
-								scanfloyd[j*3+1+192*3]+=qv*5/16;
-								scanfloyd[j*3+2+192*3]+=qb*5/16;
-								/* pixel dessous à droite 1/16 de l'erreur */
+
+							if (!bayerEnable) {
+								/* les pixels sont plus petits, la compensation l'est aussi! */
+								qr=nqr*floydcoef*0.5;
+								qv=nqv*floydcoef*0.5;
+								qb=nqb*floydcoef*0.5;
+								/* pixel suivant prend 7/16 de l'erreur */
 								if (j<191) {
-									scanfloyd[j*3+0+3+192*3]+=qr*1/16;
-									scanfloyd[j*3+1+3+192*3]+=qv*1/16;
-									scanfloyd[j*3+2+3+192*3]+=qb*1/16;
+									scanfloyd[j*3+0+3]+=qr*7/16;
+									scanfloyd[j*3+1+3]+=qv*7/16;
+									scanfloyd[j*3+2+3]+=qb*7/16;
+								}
+								if (i<269) {
+									/* pixel du dessous en retrait prend 3/16 de l'erreur */
+									if (j) {
+										scanfloyd[j*3+0-3+192*3]+=qr*3/16;
+										scanfloyd[j*3+1-3+192*3]+=qv*3/16;
+										scanfloyd[j*3+2-3+192*3]+=qb*3/16;
+									}
+									/* pixel immédiatement en dessous 5/16 de l'erreur */
+									scanfloyd[j*3+0+192*3]+=qr*5/16;
+									scanfloyd[j*3+1+192*3]+=qv*5/16;
+									scanfloyd[j*3+2+192*3]+=qb*5/16;
+									/* pixel dessous à droite 1/16 de l'erreur */
+									if (j<191) {
+										scanfloyd[j*3+0+3+192*3]+=qr*1/16;
+										scanfloyd[j*3+1+3+192*3]+=qv*1/16;
+										scanfloyd[j*3+2+3+192*3]+=qb*1/16;
+									}
 								}
 							}
 						}
@@ -1535,6 +1711,26 @@ printf("load BMP file\n");
 					PUT_LINE(x*2,y*2+31,31,0,&mygreen);
 					PUT_LINE(x*2+31,y*2,0,31,&mygreen);
 				}
+
+				/* HUD */
+				int idx=0;
+				for (i=0;i<32;i++) {
+					for (j=0;j<512;j++) {
+						PUT_PIXEL(768+j,476+i,&bayerPanel[idx]);idx++;
+					}
+				}
+				if (bayerEnable) {
+					unsigned int white=0xFFFFFFFF;
+					for (i=0;i<30;i++) {
+						PUT_PIXEL(768+bayerN*32+64+1+i,477,&white);
+						PUT_PIXEL(768+bayerN*32+64+1+i,477+30,&white);
+					}
+					for (j=0;j<30;j++) {
+						PUT_PIXEL(768+bayerN*32+64+1,477+j,&white);
+						PUT_PIXEL(768+bayerN*32+64+31,477+j,&white);
+					}
+				}
+
 
 				/* floydcoef */
 				j=floydcoef*512;if (j>510) j=510;
@@ -1870,9 +2066,10 @@ printf("load BMP file\n");
 		        SDL_BlitSurface(surface,NULL,screen,NULL);
 		        SDL_UpdateWindowSurface(win);
 			{
-			char windowname[128];
+			char windowname[256];
 			if (!locked) {
-				sprintf(windowname,"%s Quantization - nblines=%d floyd=%.2lf sharp=%.2lf contrast=%.2lf level=%d/%d",WINDOW_NAME,photo->height,floydcoef,sharpnesscoef,contrastcoef,levelup,leveldown);
+				sprintf(windowname,"%s Quantization - nblines=%d %s=%.2lf sharp=%.2lf contrast=%.2lf level=%d/%d",WINDOW_NAME,photo->height,bayerEnable?"bayer":"floyd",
+						floydcoef,sharpnesscoef,contrastcoef,levelup,leveldown);
 			} else {
 				sprintf(windowname,"%s BITMAP Edition - cursor %d/%d pencil=%d",WINDOW_NAME,keycursorx,keycursory,currentpen);
 			}
@@ -1958,6 +2155,21 @@ printf("load BMP file\n");
 							if (my<64) touchsharp=1; else
 							if (my<96) touchcontrast=1; else 
 							if (my<128) touchlevel=1;
+						}
+
+						if (my>470 && my<512 && mx<768+16*32) {
+							int posx;
+							posx=(mx-768)>>5;
+							if (posx>=2 && posx<=13) {
+								bayerEnable=1;
+								bayerN=posx-2;
+							} else if (posx>13) {
+								bayerEnable=0;
+							} else {
+								bayerEnable=1; // get last one
+							}
+							redraw=1;
+							compute=1;
 						}
 						
 						if (touchfloyd) {
@@ -2151,6 +2363,10 @@ printf("load BMP file\n");
 				} else if (nokey && state[SDL_SCANCODE_T]) {
 					toggle_greentea=1-toggle_greentea;
 					redraw=1;
+				} else if (nokey && state[SDL_SCANCODE_B]) {
+					if (bayerEnable) bayerEnable=0; else bayerEnable=1;
+					redraw=1;
+					compute=1;
 				}
 				
 				break;
@@ -2602,6 +2818,7 @@ printf("load BMP file\n");
 			sprintf(buftmp,"	<keycursorx v=\"%d\"/>\n",keycursorx); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<keycursory v=\"%d\"/>\n",keycursory); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<floyd v=\"%.2lf\"/>\n",floydcoef); FileWriteLine(xmlfilename,buftmp);
+			sprintf(buftmp,"	<bayerN v=\"%d\"/>\n",bayerN); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<sharp v=\"%.2lf\"/>\n",sharpnesscoef); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<contrast v=\"%.2lf\"/>\n",contrastcoef); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<levelup v=\"%d\"/>\n",levelup); FileWriteLine(xmlfilename,buftmp);
@@ -2711,7 +2928,7 @@ printf("load BMP file\n");
 		}
 
 		if ( state[SDL_SCANCODE_ESCAPE]+state[SDL_SCANCODE_KP_PLUS]+state[SDL_SCANCODE_KP_MINUS]+state[SDL_SCANCODE_T]+state[SDL_SCANCODE_G]
-			+state[SDL_SCANCODE_L]+state[SDL_SCANCODE_U]+state[SDL_SCANCODE_P]
+			+state[SDL_SCANCODE_L]+state[SDL_SCANCODE_U]+state[SDL_SCANCODE_P]+state[SDL_SCANCODE_B]
 			+state[SDL_SCANCODE_KP_0]+state[SDL_SCANCODE_KP_PERIOD]
 			+state[SDL_SCANCODE_DOWN]+state[SDL_SCANCODE_UP]+state[SDL_SCANCODE_RIGHT]+state[SDL_SCANCODE_LEFT]+state[SDL_SCANCODE_SPACE])
 				nokey=0; else nokey=1;
@@ -2748,7 +2965,7 @@ void Usage()
 	#undef FUNC
 	#define FUNC "Usage"
 	
-	printf("%.*s.exe v9.0 / Edouard BERGE 2016 (build 2024-05)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
+	printf("%.*s.exe v10.0 / Edouard BERGE 2016 (build 2025-01)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
 	printf("BMP loader by https://github.com/phm97\n");
 	printf("--- this software is designed to run with colorful images, avoid conversion from Atari/Amiga ---\n");
 	printf("           introducing for the first time ASS technology (Amstrad Split Solver)\n");
@@ -2765,6 +2982,7 @@ void Usage()
 	printf("right-click to fill or unfill transparency on the very same color\n");
 	printf("G generate files and save settings\n");
 	printf("L lock screen in order to edit pixels\n");
+	printf("B toggle between Floyd Steinberg dithering and Bayer Matrix dithering\n");
 	printf("ESC press twice to quit\n");
 	printf("\n");
 	printf("CONTROLS DURING PIXEL EDITION\n");
