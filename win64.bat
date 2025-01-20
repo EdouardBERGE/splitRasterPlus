@@ -1,0 +1,1 @@
+cl splitsdl.c /F 5000000 /MT /GL /Gw /O2 /std:c17 shell32.lib zlibwapi.lib libpng.lib -DOS_WIN -I.\lpng1640 /I.\SDL2-2.30.2\include .\SDL2-2.30.2\lib\x64\SDL2.lib .\SDL2-2.30.2\lib\x64\SDL2main.lib  /D _MBCS /link /SUBSYSTEM:CONSOLE 
