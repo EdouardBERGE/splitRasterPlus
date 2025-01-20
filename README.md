@@ -5,4 +5,5 @@ raw sources from 2019 version + hardware sprites bugfix + Win/MacOS/Linux compat
 
 ![preview](https://github.com/EdouardBERGE/splitRasterPlus/blob/main/split.jpg)
 
+Vidéo de démonstration sur MacOS
 [![IMAGE demonstration sur MacOS](https://github.com/EdouardBERGE/splitRasterPlus/blob/main/macOS.png)](https://www.youtube.com/watch?v=NX9KVfwzKjQ)
