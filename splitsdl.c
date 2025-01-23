@@ -382,7 +382,7 @@ struct s_rastamix {
 unsigned int asicad[4]; //asicad1,asicad2,asicad3,asicad4;
 unsigned int asicol[4]; //asicol1, asicol2, asicol3, asicol4;
 unsigned int hspad;
-unsigned int hspcol1,hspcol2;
+unsigned int hspcol1,hspcol2,hspcol3;
 unsigned char palette[48];
 int l;
 unsigned char clipped[384]; // HSP index +1 ou zero si rien
@@ -405,7 +405,7 @@ int compare_hsp(const void * a, const void * b)
 	if (ret) return ret; else return c->x-d->x;
 }
 
-int Build(char *filename, int dithering, int uniform)
+int Build(char *filename)
 {
 	#undef FUNC
 	#define FUNC "Build"
@@ -522,10 +522,20 @@ enum e_module {
 	int bx=4,by=8; /* 4x8 as default */
 	int bayerEnable=1; // default
 	int bayerN=6;
+	/* No Raster mode */
+	int rasterOFF=0;
+	/* Jarvis-Judice-Ninke & Atkinson */
+	float scanfloyd[192*3*3]; // 3 lignes
+	int ditherStyle=0;
+
+	/* 16 colors version + GUI enhancements */
+	int is_loaded=0;
+	int idx=0;
+	SDL_Event event;
 
 	bayer=malloc(64*sizeof(float));
 	//setBayer(&bayer,&bx,&by,bayerCoef);
-	//
+	
 	photo=PNGRead32("bayerFloyd.png");
 	if (!photo || photo->width!=512 || photo->height!=32) {
 		logerr("bayerFloyd.png is missing or corrupted, please reinstall...");
@@ -533,112 +543,8 @@ enum e_module {
 	} else {
 		bayerPanel=(unsigned int *)photo->data;
 		MemFree(photo);
+		photo=NULL;
 	}
-
-	if (strstr(filename,"png")) {
-		strcpy(sprfilename,filename);
-		TxtReplace(sprfilename,".png",".spr",0);
-		strcpy(xmlfilename,filename);
-		TxtReplace(xmlfilename,".png",".xml",0);
-		sprintf(cprasmfilename,"%scpr",filename);
-		TxtReplace(cprasmfilename,".pngcpr","cpr.asm",0);
-		sprintf(previewfilename,"%spreview",filename);
-		TxtReplace(previewfilename,".pngpreview","preview.png",0);
-		strcpy(asmfilename,filename);
-		TxtReplace(asmfilename,".png",".asm",0);
-		strcpy(scrfilename1,filename);
-		TxtReplace(scrfilename1,".png",".sc1",0);
-		strcpy(scrfilename2,filename);
-		TxtReplace(scrfilename2,".png",".sc2",0);
-		photo=PNGRead24(filename);
-		if (!photo) {
-			logerr("cannot read PNG");
-			exit(ABORT_ERROR);
-		}
-		loginfo("PNG image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
-		if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
-			logerr("PNG image [%s] must be RGB without transparency",filename);
-			exit(ABORT_ERROR);
-		}
-	}
-	if (strstr(filename,"bmp")) {
-		unsigned char *bpixels;
-		int bwidth, bheight;
-		strcpy(sprfilename,filename);
-		TxtReplace(sprfilename,".bmp",".spr",0);
-		strcpy(xmlfilename,filename);
-		TxtReplace(xmlfilename,".bmp",".xml",0);
-		sprintf(cprasmfilename,"%scpr",filename);
-		TxtReplace(cprasmfilename,".bmpcpr","cpr.asm",0);
-		sprintf(previewfilename,"%spreview",filename);
-		TxtReplace(previewfilename,".bmppreview","preview.png",0);
-		strcpy(asmfilename,filename);
-		TxtReplace(asmfilename,".bmp",".asm",0);
-		strcpy(scrfilename1,filename);
-		TxtReplace(scrfilename1,".bmp",".sc1",0);
-		strcpy(scrfilename2,filename);
-		TxtReplace(scrfilename2,".bmp",".sc2",0);
-printf("load BMP file\n");
-		if (loadBMP(filename,&bpixels,&bwidth,&bheight)) {
-			logerr("cannot read BMP");
-			exit(ABORT_ERROR);
-		}
-
-		photo=calloc(sizeof(struct s_png_info),1);
-		photo->color_type=PNG_COLOR_TYPE_RGB;
-		photo->width=bwidth;
-		photo->height=bheight;
-		photo->bit_depth=8;
-		photo->data=MemMalloc(bwidth*bheight*3);
-		// from RGBA to RGB
-		for (l=0;l<bwidth*bheight;l++) {
-			bpixels[l*3+0]=bpixels[l*4+0];
-			bpixels[l*3+1]=bpixels[l*4+1];
-			bpixels[l*3+2]=bpixels[l*4+2];
-		}
-		for (l=0;l<bheight;l++) {
-			memcpy(photo->data+bwidth*3*l,bpixels+bwidth*3*(bheight-1-l),bwidth*3);
-		}
-		MemFree(bpixels);
-
-		if (!photo) {
-			logerr("cannot read BMP");
-			exit(ABORT_ERROR);
-		}
-		loginfo("BMP image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
-		if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
-			logerr("PNG image must be RGB without transparency",filename);
-			exit(ABORT_ERROR);
-		}
-	}
-
-	if (!photo) {
-		logerr("Please use .bmp or .png files...");
-		exit(ABORT_ERROR);
-	}
-
-        if (photo->width!=384 || photo->height>273 || photo->height<16) {
-				float xmul;
-				int newypict=272;
-				if (photo->width!=384) logwarn("PNG file [%s] is not 384 pixels width",filename);
-				if (photo->height>273) logwarn("PNG file [%s] more than 273 pixels height",filename);
-				if (photo->width!=384) {
-					xmul=384.0/(float)photo->width;
-					newypict=photo->height*xmul;
-					if (newypict>273) newypict=273; // et tant pis pour le ratio!
-				}
-                photo->data=ImageReduction(photo->data,photo->width,photo->height,384,newypict);
-                photo->width=384;
-                photo->height=newypict;
-        }
-
-	/* on alloue le max */
-	data=MemMalloc(384*273*3);
-	preview=MemCalloc(384*273*3);
-	/* data est la REFERENCE ultime */
-	memcpy(data,photo->data,384*photo->height*3);
-
-	rastamix=MemCalloc(sizeof(struct s_rastamix)*273);
 
 	if (SDL_Init(SDL_INIT_EVERYTHING)!=0) {
 			fprintf(stderr,"SDL_Init error\n");
@@ -647,7 +553,6 @@ printf("load BMP file\n");
 	loginfo("SDL_Init");
 	winx=(384+256)*2;
 	winy=273*2+1;
-
 	if ((win=SDL_CreateWindow(WINDOW_NAME, 30, 30, winx, winy, SDL_WINDOW_SHOWN))==NULL) {
 			fprintf(stderr,"SDL_CreateWindow error\n");
 			return -1;
@@ -659,203 +564,344 @@ printf("load BMP file\n");
 			return -1;
 	}
 
-	width=photo->width;
-	height=photo->height;
+	/* buffer de travail */
+	data=MemMalloc(384*273*3);
+	preview=MemCalloc(384*273*3);
+	rastamix=MemCalloc(sizeof(struct s_rastamix)*273);
 
-	curhsp=nbhsp=0;
-	if (FileExists(xmlfilename)) {
-		unsigned char *zemask;
-		unsigned char *zedata;
-		int tmpheight;
-		resource=XMLLoadFile(xmlfilename);
-		//XMLDumpTree(resource);
-		
-		if ((xmlparam=XMLGetField(resource,"height"))!=NULL) tmpheight=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-		if (height!=photo->height) {
-			XMLFreeField(resource);
-			logerr("XML loaded but not applied because declared height is different from current picture!\n");
-		} else {
-			if ((xmlparam=XMLGetField(resource,"locked"))!=NULL) locked=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if (locked) {
-				current_module=E_MODULE_EDITION;
-			} else {
-				if ((xmlparam=XMLGetField(resource,"module"))!=NULL) current_module=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-				switch (current_module) {
-					case E_MODULE_EDITION:
-					case E_MODULE_PALETTE:locked=1; // temporaire
-						break;
-					case E_MODULE_QUANTIZATION:
-						locked=0;
-						break;
-				}
-			}
-			if ((xmlparam=XMLGetField(resource,"keycursorx"))!=NULL) keycursorx=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if ((xmlparam=XMLGetField(resource,"keycursory"))!=NULL) keycursory=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if ((xmlparam=XMLGetField(resource,"floyd"))!=NULL) floydcoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if ((xmlparam=XMLGetField(resource,"bayerN"))!=NULL) bayerN=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if ((xmlparam=XMLGetField(resource,"sharp"))!=NULL) sharpnesscoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if ((xmlparam=XMLGetField(resource,"contrast"))!=NULL) contrastcoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if ((xmlparam=XMLGetField(resource,"levelup"))!=NULL) levelup=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-			if ((xmlparam=XMLGetField(resource,"leveldown"))!=NULL) leveldown=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
-
-			if ((xmlhsp=XMLGetField(resource,"sprites"))!=NULL) {
-				xmlhsptab=XMLGetFieldMulti(xmlhsp,"sprite",&nbhsp);
-				for (i=0;i<nbhsp;i++) {
-					hsp[i].x=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],"x"));
-					hsp[i].y=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],"y"));
-					hsp[i].group=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],"group"));
-					
-					/* on récupère aussi la palette */
-					for (j=0;j<45;j++) {
-						char bufname[128];
-						sprintf(bufname,"p%02d",j);
-						hsp[i].palette[j]=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],bufname));
-					}
-					
-					/* recup du masque */
-					zemask=XMLGetFieldValue(&xmlhsptab[i],"mask");
-					if (zemask && strlen(zemask)>=256) {
-						for (l=0;l<256;l++) {
-							hsp[i].mask[l]=zemask[l]-'0';
-						}
-					} else {
-						printf("WARNING: no MASK for HSP %d in XML\n",i);
-					}
-					for (l=0;l<256;l++) {
-						if (hsp[i].mask[l]) hsp[i].mask[l]=1;
-					}
-					/* recup des DATA si présentes et mode locked */
-					if (locked) {
-						zedata=XMLGetFieldValue(&xmlhsptab[i],"data");
-						if (zedata && strlen(zedata)>=768*2) {
-							for (l=0;l<768;l++) {
-								if (zedata[l*2+0]<='9' && zedata[l*2+0]>='0') 
-									hsp[i].data[l]=zedata[l*2+0]-'0';
-								else
-									hsp[i].data[l]=zedata[l*2+0]-'A'+10;
-								hsp[i].data[l]<<=4;
-								if (zedata[l*2+1]<='9' && zedata[l*2+1]>='0') 
-									hsp[i].data[l]+=zedata[l*2+1]-'0';
-								else
-									hsp[i].data[l]+=zedata[l*2+1]-'A'+10;
-							}
-						} else {
-							printf("WARNING: no DATA for HSP %d in XML\n",i);
-						}
-					}
-				}
-			}
-			
-			if (locked) {
-				loginfo("Loading back rastamix structs");
-				if ((xmlparam=XMLGetField(resource,"rastainit"))!=NULL) {
-					char buftmp[256];
-					for (l=0;l<31;l++) {
-						sprintf(buftmp,"asicolinit%02d",l);
-						asicolinit[l]=atoi(XMLGetFieldAttrValueFromField(xmlparam,buftmp));
-					}
-				} else {
-					logerr("XML corrupted no init colors!\n");
-					exit(-2);
-				}
-
-
-				if ((xmlrasta=XMLGetField(resource,"rastamixtab"))!=NULL) {
-					char buftmp[256];
-					int nbrasta;
-					
-					xmlrastatab=XMLGetFieldMulti(xmlrasta,"rastamix",&nbrasta);
-					if (!xmlrastatab || nbrasta!=height) {
-						XMLFreeField(resource);
-						printf("XML corrupted (rastamix)!\n");
-						exit(-1);
-					}
-					
-					for (i=0;i<nbrasta;i++) {
-						rastamix[i].adr=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"adr"));
-						rastamix[i].hspad=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"hspad"));
-						rastamix[i].hspcol1=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"hspcol1"));
-						rastamix[i].hspcol2=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"hspcol2"));
-						rastamix[i].l=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"l"));
-						
-						for (l=0;l<4;l++) {
-							sprintf(buftmp,"asicad%02d",l);
-							rastamix[i].asicad[l]=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],buftmp));
-							if (i>1 && (rastamix[i].asicad[l]<0x6400 || rastamix[i].asicad[l]>0x641F)) {
-								printf("XML corrupted rastaline %d asicoladr[%d]=%X\n",i,l,rastamix[i].asicad[l]);
-								exit(-2);
-							}
-							sprintf(buftmp,"asicol%02d",l);
-							rastamix[i].asicol[l]=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],buftmp));
-						}
-						for (l=0;l<48;l++) {
-							sprintf(buftmp,"p%02d",l);
-							rastamix[i].palette[l]=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],buftmp));
-						}
-						
-						memset(rastamix[i].clipped,0,sizeof(rastamix[i].clipped));
-					}
-				}
-
-				/* reconstruction des infos de clipping à partir des masques */
-				for (i=nbhsp-1;i>=0;i--) {
-					l=0;
-					for (y=0;y<16;y++)
-					for (x=0;x<16;x++) {
-						if (hsp[i].mask[l]) {
-							rastamix[hsp[i].y+y].clipped[hsp[i].x+x]=i+1; // index du sprite+1 dans les infos de clipping
-						}
-						l++;
-					}
-				}
-				
-				loginfo("Loading back preview");
-				zedata=XMLGetFieldValue(resource,"preview");
-				if (zedata && strlen(zedata)>=384*3*2*photo->height) {
-					for (l=0;l<384*3*photo->height;l++) {
-						if (zedata[l*2+0]<='9' && zedata[l*2+0]>='0') 
-							preview[l]=zedata[l*2+0]-'0';
-						else
-							preview[l]=zedata[l*2+0]-'A'+10;
-						preview[l]<<=4;
-						if (zedata[l*2+1]<='9' && zedata[l*2+1]>='0') 
-							preview[l]+=zedata[l*2+1]-'0';
-						else
-							preview[l]+=zedata[l*2+1]-'A'+10;
-					}
-				} else {
-					printf("XML preview corrupted\n");
-					exit(-2);
-				}
-				
-				loginfo("Loading back cpcdata");
-				zedata=XMLGetFieldValue(resource,"cpcdata");
-				if (zedata && strlen(zedata)>=65536) {
-					for (l=0;l<32768;l++) {
-						if (zedata[l*2+0]<='9' && zedata[l*2+0]>='0') 
-							cpc[l]=zedata[l*2+0]-'0';
-						else
-							cpc[l]=zedata[l*2+0]-'A'+10;
-						cpc[l]<<=4;
-						if (zedata[l*2+1]<='9' && zedata[l*2+1]>='0') 
-							cpc[l]+=zedata[l*2+1]-'0';
-						else
-							cpc[l]+=zedata[l*2+1]-'A'+10;
-					}
-				} else {
-					printf("XML cpc data corrupted\n");
-					exit(-2);
-				}
-				MemFree(xmlrastatab);
-			}
-		}
-		MemFree(xmlhsptab);
-		XMLFreeField(resource);
-		loginfo("XML loaded");
-	}
-	omx=-1;omy=-1;
+	width=height=0;
 
 	while (redo) {
+		while (SDL_PollEvent(&event)) {
+			switch (event.type) {
+				case SDL_DROPFILE:filename=event.drop.file;printf("new Drop!\n");
+					if (photo) {MemFree(photo->data);MemFree(photo);}
+					is_loaded=0;
+					break;
+				default:break;
+			}
+		}
+		//*******************************************************************************************
+		//*******************************************************************************************
+		////                     Chargement des images
+		//*******************************************************************************************
+		//*******************************************************************************************
+		if (!is_loaded && filename) {
+			if (strstr(filename,"png")) {
+				strcpy(sprfilename,filename);
+				TxtReplace(sprfilename,".png",".spr",0);
+				strcpy(xmlfilename,filename);
+				TxtReplace(xmlfilename,".png",".xml",0);
+				sprintf(cprasmfilename,"%scpr",filename);
+				TxtReplace(cprasmfilename,".pngcpr","cpr.asm",0);
+				sprintf(previewfilename,"%spreview",filename);
+				TxtReplace(previewfilename,".pngpreview","preview.png",0);
+				strcpy(asmfilename,filename);
+				TxtReplace(asmfilename,".png",".asm",0);
+				strcpy(scrfilename1,filename);
+				TxtReplace(scrfilename1,".png",".sc1",0);
+				strcpy(scrfilename2,filename);
+				TxtReplace(scrfilename2,".png",".sc2",0);
+				photo=PNGRead24(filename);
+				if (!photo) {
+					logerr("cannot read PNG [%s]",filename);
+				} else {
+					loginfo("PNG image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
+					if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
+						logerr("PNG image [%s] must be RGB without transparency",filename);
+						MemFree(photo->data);
+						MemFree(photo);
+						photo=NULL;
+					}
+				}
+			}
+			if (strstr(filename,"bmp")) {
+				unsigned char *bpixels;
+				int bwidth, bheight;
+				strcpy(sprfilename,filename);
+				TxtReplace(sprfilename,".bmp",".spr",0);
+				strcpy(xmlfilename,filename);
+				TxtReplace(xmlfilename,".bmp",".xml",0);
+				sprintf(cprasmfilename,"%scpr",filename);
+				TxtReplace(cprasmfilename,".bmpcpr","cpr.asm",0);
+				sprintf(previewfilename,"%spreview",filename);
+				TxtReplace(previewfilename,".bmppreview","preview.png",0);
+				strcpy(asmfilename,filename);
+				TxtReplace(asmfilename,".bmp",".asm",0);
+				strcpy(scrfilename1,filename);
+				TxtReplace(scrfilename1,".bmp",".sc1",0);
+				strcpy(scrfilename2,filename);
+				TxtReplace(scrfilename2,".bmp",".sc2",0);
+				if (loadBMP(filename,&bpixels,&bwidth,&bheight)) {
+					logerr("cannot read BMP");
+					exit(ABORT_ERROR);
+				}
+
+				photo=MemMalloc(sizeof(struct s_png_info));
+				memset(photo,0,sizeof(struct s_png_info));
+
+				photo->color_type=PNG_COLOR_TYPE_RGB;
+				photo->width=bwidth;
+				photo->height=bheight;
+				photo->bit_depth=8;
+				photo->data=MemMalloc(bwidth*bheight*3);
+				// from RGBA to RGB
+				for (l=0;l<bwidth*bheight;l++) {
+					bpixels[l*3+0]=bpixels[l*4+0];
+					bpixels[l*3+1]=bpixels[l*4+1];
+					bpixels[l*3+2]=bpixels[l*4+2];
+				}
+				for (l=0;l<bheight;l++) {
+					memcpy(photo->data+bwidth*3*l,bpixels+bwidth*3*(bheight-1-l),bwidth*3);
+				}
+				MemFree(bpixels);
+
+				if (!photo) {
+					logerr("cannot read BMP");
+				} else {
+					loginfo("BMP image is %dx%dx%d",photo->width,photo->height,photo->bit_depth);
+					if (photo->color_type!=PNG_COLOR_TYPE_RGB) {
+						logerr("PNG image must be RGB without transparency",filename);
+						MemFree(photo->data);
+						MemFree(photo);
+						photo=NULL;
+					}
+				}
+			}
+
+			if (photo) {
+				if (photo->width!=384 || photo->height>273 || photo->height<16) {
+							float xmul;
+							int newypict=272;
+							if (photo->width!=384) logwarn("PNG file [%s] is not 384 pixels width",filename);
+							if (photo->height>273) logwarn("PNG file [%s] more than 273 pixels height",filename);
+							if (photo->width!=384) {
+								xmul=384.0/(float)photo->width;
+								newypict=photo->height*xmul;
+								if (newypict>273) newypict=273; // et tant pis pour le ratio!
+							}
+					photo->data=ImageReduction(photo->data,photo->width,photo->height,384,newypict);
+					photo->width=384;
+					photo->height=newypict;
+				}
+				width=photo->width;
+				height=photo->height;
+				/* data est la REFERENCE ultime */
+				memcpy(data,photo->data,384*photo->height*3);
+
+				if (FileExists(xmlfilename)) {
+					unsigned char *zemask;
+					unsigned char *zedata;
+					int tmpheight;
+					resource=XMLLoadFile(xmlfilename);
+					//XMLDumpTree(resource);
+					
+					if ((xmlparam=XMLGetField(resource,"height"))!=NULL) tmpheight=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+					if (height!=photo->height) {
+						XMLFreeField(resource);
+						logerr("XML loaded but not applied because declared height is different from current picture!\n");
+					} else {
+						if ((xmlparam=XMLGetField(resource,"locked"))!=NULL) locked=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if (locked) {
+							current_module=E_MODULE_EDITION;
+						} else {
+							if ((xmlparam=XMLGetField(resource,"module"))!=NULL) current_module=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+							switch (current_module) {
+								case E_MODULE_EDITION:
+								case E_MODULE_PALETTE:locked=1; // temporaire
+									break;
+								case E_MODULE_QUANTIZATION:
+									locked=0;
+									break;
+							}
+						}
+						if ((xmlparam=XMLGetField(resource,"keycursorx"))!=NULL) keycursorx=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"keycursory"))!=NULL) keycursory=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"floyd"))!=NULL) floydcoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"ditherStyle"))!=NULL) ditherStyle=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"bayerN"))!=NULL) bayerN=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"sharp"))!=NULL) sharpnesscoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"contrast"))!=NULL) contrastcoef=atof(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"levelup"))!=NULL) levelup=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+						if ((xmlparam=XMLGetField(resource,"leveldown"))!=NULL) leveldown=atoi(XMLGetFieldAttrValueFromField(xmlparam,"v"));
+
+						if ((xmlhsp=XMLGetField(resource,"sprites"))!=NULL) {
+							xmlhsptab=XMLGetFieldMulti(xmlhsp,"sprite",&nbhsp);
+							for (i=0;i<nbhsp;i++) {
+								hsp[i].x=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],"x"));
+								hsp[i].y=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],"y"));
+								hsp[i].group=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],"group"));
+								
+								/* on récupère aussi la palette */
+								for (j=0;j<45;j++) {
+									char bufname[128];
+									sprintf(bufname,"p%02d",j);
+									hsp[i].palette[j]=atoi(XMLGetFieldAttrValueFromField(&xmlhsptab[i],bufname));
+								}
+								
+								/* recup du masque */
+								zemask=XMLGetFieldValue(&xmlhsptab[i],"mask");
+								if (zemask && strlen(zemask)>=256) {
+									for (l=0;l<256;l++) {
+										hsp[i].mask[l]=zemask[l]-'0';
+									}
+								} else {
+									printf("WARNING: no MASK for HSP %d in XML\n",i);
+								}
+								for (l=0;l<256;l++) {
+									if (hsp[i].mask[l]) hsp[i].mask[l]=1;
+								}
+								/* recup des DATA si présentes et mode locked */
+								if (locked) {
+									zedata=XMLGetFieldValue(&xmlhsptab[i],"data");
+									if (zedata && strlen(zedata)>=768*2) {
+										for (l=0;l<768;l++) {
+											if (zedata[l*2+0]<='9' && zedata[l*2+0]>='0') 
+												hsp[i].data[l]=zedata[l*2+0]-'0';
+											else
+												hsp[i].data[l]=zedata[l*2+0]-'A'+10;
+											hsp[i].data[l]<<=4;
+											if (zedata[l*2+1]<='9' && zedata[l*2+1]>='0') 
+												hsp[i].data[l]+=zedata[l*2+1]-'0';
+											else
+												hsp[i].data[l]+=zedata[l*2+1]-'A'+10;
+										}
+									} else {
+										printf("WARNING: no DATA for HSP %d in XML\n",i);
+									}
+								}
+							}
+						}
+						
+						if (locked) {
+							loginfo("Loading back rastamix structs");
+							if ((xmlparam=XMLGetField(resource,"rastainit"))!=NULL) {
+								char buftmp[256];
+								for (l=0;l<31;l++) {
+									sprintf(buftmp,"asicolinit%02d",l);
+									asicolinit[l]=atoi(XMLGetFieldAttrValueFromField(xmlparam,buftmp));
+								}
+							} else {
+								logerr("XML corrupted no init colors!\n");
+								exit(-2);
+							}
+
+
+							if ((xmlrasta=XMLGetField(resource,"rastamixtab"))!=NULL) {
+								char buftmp[256];
+								int nbrasta;
+								
+								xmlrastatab=XMLGetFieldMulti(xmlrasta,"rastamix",&nbrasta);
+								if (!xmlrastatab || nbrasta!=height) {
+									XMLFreeField(resource);
+									printf("XML corrupted (rastamix)!\n");
+									exit(-1);
+								}
+								
+								for (i=0;i<nbrasta;i++) {
+									rastamix[i].adr=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"adr"));
+									rastamix[i].hspad=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"hspad"));
+									rastamix[i].hspcol1=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"hspcol1"));
+									rastamix[i].hspcol2=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"hspcol2"));
+									rastamix[i].hspcol3=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"hspcol3"));
+									rastamix[i].l=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],"l"));
+									
+									for (l=0;l<4;l++) {
+										sprintf(buftmp,"asicad%02d",l);
+										rastamix[i].asicad[l]=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],buftmp));
+										if (i>1 && (rastamix[i].asicad[l]<0x6400 || rastamix[i].asicad[l]>0x641F)) {
+											printf("XML corrupted rastaline %d asicoladr[%d]=%X\n",i,l,rastamix[i].asicad[l]);
+											exit(-2);
+										}
+										sprintf(buftmp,"asicol%02d",l);
+										rastamix[i].asicol[l]=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],buftmp));
+									}
+									for (l=0;l<48;l++) {
+										sprintf(buftmp,"p%02d",l);
+										rastamix[i].palette[l]=atoi(XMLGetFieldAttrValueFromField(&xmlrastatab[i],buftmp));
+									}
+									
+									memset(rastamix[i].clipped,0,sizeof(rastamix[i].clipped));
+								}
+							}
+
+							/* reconstruction des infos de clipping à partir des masques */
+							for (i=nbhsp-1;i>=0;i--) {
+								l=0;
+								for (y=0;y<16;y++)
+								for (x=0;x<16;x++) {
+									if (hsp[i].mask[l]) {
+										rastamix[hsp[i].y+y].clipped[hsp[i].x+x]=i+1; // index du sprite+1 dans les infos de clipping
+									}
+									l++;
+								}
+							}
+							
+							loginfo("Loading back preview");
+							zedata=XMLGetFieldValue(resource,"preview");
+							if (zedata && strlen(zedata)>=384*3*2*photo->height) {
+								for (l=0;l<384*3*photo->height;l++) {
+									if (zedata[l*2+0]<='9' && zedata[l*2+0]>='0') 
+										preview[l]=zedata[l*2+0]-'0';
+									else
+										preview[l]=zedata[l*2+0]-'A'+10;
+									preview[l]<<=4;
+									if (zedata[l*2+1]<='9' && zedata[l*2+1]>='0') 
+										preview[l]+=zedata[l*2+1]-'0';
+									else
+										preview[l]+=zedata[l*2+1]-'A'+10;
+								}
+							} else {
+								printf("XML preview corrupted\n");
+								exit(-2);
+							}
+							
+							loginfo("Loading back cpcdata");
+							zedata=XMLGetFieldValue(resource,"cpcdata");
+							if (zedata && strlen(zedata)>=65536) {
+								for (l=0;l<32768;l++) {
+									if (zedata[l*2+0]<='9' && zedata[l*2+0]>='0') 
+										cpc[l]=zedata[l*2+0]-'0';
+									else
+										cpc[l]=zedata[l*2+0]-'A'+10;
+									cpc[l]<<=4;
+									if (zedata[l*2+1]<='9' && zedata[l*2+1]>='0') 
+										cpc[l]+=zedata[l*2+1]-'0';
+									else
+										cpc[l]+=zedata[l*2+1]-'A'+10;
+								}
+							} else {
+								printf("XML cpc data corrupted\n");
+								exit(-2);
+							}
+							MemFree(xmlrastatab);
+						}
+					}
+					MemFree(xmlhsptab);
+					XMLFreeField(resource);
+					loginfo("XML loaded");
+				}
+			} else {
+				width=0;
+				height=0;
+			}
+
+			curhsp=nbhsp=0;
+			omx=-1;omy=-1;
+			reset=1;
+
+			if (photo) {
+				is_loaded=1;
+			}
+			filename=NULL; // RAB de la fuite mémoire...
+		}
+
+		//*******************************************************************************************
+		//*******************************************************************************************
+		////                    
+		//*******************************************************************************************
+		//*******************************************************************************************
+		if (width && height)
 		if (!locked) {
 			if (reset) {
 				reset=0;
@@ -898,7 +944,6 @@ printf("load BMP file\n");
 				compute=1;
 			}
 			if (computeimage || compute) {
-				float scanfloyd[192*3*2];
 				float or,ov,ob,qr,qv,qb;
 				unsigned char scanline[192*3*2];
 				unsigned char clippedscanline[192*3*2];
@@ -942,6 +987,7 @@ printf("load BMP file\n");
 					rastamix[i].hspad=0;
 					rastamix[i].hspcol1=0;
 					rastamix[i].hspcol2=0;
+					rastamix[i].hspcol3=0;
 
 				}
 
@@ -964,7 +1010,7 @@ printf("load BMP file\n");
 				group=0;
 				hsp[0].group=group; /* fix premier sprite noir à l'init */
 				for (i=1;i<nbhsp;i++) {
-					if (hsp[i-1].y+16+8<hsp[i].y) {
+					if (hsp[i-1].y+16+5<hsp[i].y) {
 						group++;
 					}
 					hsp[i].group=group;
@@ -1039,12 +1085,14 @@ printf("load BMP file\n");
 						/* insert colors in rastamix */
 						asicad=0x6422;
 						x=0;
-						for (j=previouslasty;j<previouslasty+8;j++) {
+						for (j=previouslasty;j<previouslasty+5;j++) {
 							rastamix[j].hspad=asicad;
-							asicad+=4;
+							asicad+=6;
 							rastamix[j].hspcol1=((hsp[lastsp].palette[x*3+1]>>4)<<8)|(hsp[lastsp].palette[x*3+0]&0xF0)|((hsp[lastsp].palette[x*3+2]>>4)&0xF);
 							x++;
 							rastamix[j].hspcol2=((hsp[lastsp].palette[x*3+1]>>4)<<8)|(hsp[lastsp].palette[x*3+0]&0xF0)|((hsp[lastsp].palette[x*3+2]>>4)&0xF);
+							x++;
+							rastamix[j].hspcol3=((hsp[lastsp].palette[x*3+1]>>4)<<8)|(hsp[lastsp].palette[x*3+0]&0xF0)|((hsp[lastsp].palette[x*3+2]>>4)&0xF);
 							x++;
 						}
 					}
@@ -1064,44 +1112,53 @@ printf("load BMP file\n");
 				**************************************************************************************************************
 				*************************************************************************************************************/
 
-				/****************************************************************************
-					t r a v a i l   s u r   l e s    2    p r e m i è r e s    l i g n e s
-				****************************************************************************/
-				for (j=0;j<192*2;j++) {
-					scanline[j*3+0]=(photo->data[j*6+0]+photo->data[j*6+3])*0.5;
-					scanline[j*3+1]=(photo->data[j*6+1]+photo->data[j*6+4])*0.5;
-					scanline[j*3+2]=(photo->data[j*6+2]+photo->data[j*6+5])*0.5;
-				}
-	DBG
-				/*****************************************************************
-					   on élimine les données cachées par les sprites hard
-				*****************************************************************/
-				sizeclip=0;
-				for (j=0;j<192;j++) {
-					if (!rastamix[0].clipped[j*2] || !rastamix[0].clipped[j*2+1]) {
-						clippedscanline[sizeclip*3+0]=scanline[j*3+0];
-						clippedscanline[sizeclip*3+1]=scanline[j*3+1];
-						clippedscanline[sizeclip*3+2]=scanline[j*3+2];
-						sizeclip++;
+				if (!rasterOFF) {
+					/****************************************************************************
+						t r a v a i l   s u r   l e s    2    p r e m i è r e s    l i g n e s
+					****************************************************************************/
+					for (j=0;j<192*2;j++) {
+						scanline[j*3+0]=(photo->data[j*6+0]+photo->data[j*6+3])*0.5;
+						scanline[j*3+1]=(photo->data[j*6+1]+photo->data[j*6+4])*0.5;
+						scanline[j*3+2]=(photo->data[j*6+2]+photo->data[j*6+5])*0.5;
 					}
-					if (!rastamix[1].clipped[j*2] || !rastamix[1].clipped[j*2+1]) {
-						clippedscanline[sizeclip*3+0]=scanline[j*3+0+192*3];
-						clippedscanline[sizeclip*3+1]=scanline[j*3+1+192*3];
-						clippedscanline[sizeclip*3+2]=scanline[j*3+2+192*3];
-						sizeclip++;
+		DBG
+					/*****************************************************************
+						   on élimine les données cachées par les sprites hard
+					*****************************************************************/
+					sizeclip=0;
+					for (j=0;j<192;j++) {
+						if (!rastamix[0].clipped[j*2] || !rastamix[0].clipped[j*2+1]) {
+							clippedscanline[sizeclip*3+0]=scanline[j*3+0];
+							clippedscanline[sizeclip*3+1]=scanline[j*3+1];
+							clippedscanline[sizeclip*3+2]=scanline[j*3+2];
+							sizeclip++;
+						}
+						if (!rastamix[1].clipped[j*2] || !rastamix[1].clipped[j*2+1]) {
+							clippedscanline[sizeclip*3+0]=scanline[j*3+0+192*3];
+							clippedscanline[sizeclip*3+1]=scanline[j*3+1+192*3];
+							clippedscanline[sizeclip*3+2]=scanline[j*3+2+192*3];
+							sizeclip++;
+						}
+					}
+					/* palette commune aux deux premières lignes */
+					refl=rastamix[0].l=colorz_create_palette(clippedscanline,sizeclip,rastamix[0].palette,0);
+					rastamix[1].l=refl;
+					memcpy(rastamix[1].palette,rastamix[0].palette,sizeof(rastamix[0].palette));
+				} else {
+					// unique palette for the whole screen
+					refl=rastamix[0].l=colorz_create_palette(photo->data,192*photo->height,rastamix[0].palette,0);
+					for (i=1;i<photo->height;i++) {
+						memcpy(rastamix[i].palette,rastamix[0].palette,sizeof(rastamix[0].palette));
 					}
 				}
 
-				/* palette commune aux deux premières lignes */
-				refl=rastamix[0].l=colorz_create_palette(clippedscanline,sizeclip,rastamix[0].palette,0);
-				rastamix[1].l=refl;
-				memcpy(rastamix[1].palette,rastamix[0].palette,sizeof(rastamix[0].palette));
 	DBG
 
 				/****************************************************************************************
 						  l i g n e s     s u i v a n t e s . . .
 				****************************************************************************************/
 				reboot=0;
+				if (!rasterOFF)
 				for (i=2;i<photo->height;i++) {
 					/* on utilise systématiquement les données de clipping pour constuire la clippedscan line */
 					sizeclip=0;
@@ -1195,9 +1252,8 @@ printf("load BMP file\n");
 				**************************************************************************************************************
 				*************************************************************************************************************/
 
-
 				/* initialisation du buffer de précision pour le floyd steinberg */
-				for (i=0;i<2;i++) {
+				for (i=0;i<3;i++) {
 					for (j=0;j<192;j++) {
 						scanfloyd[j*3+0+i*192*3]=(photo->data[j*6+0+i*384*3]+photo->data[j*6+3+i*384*3])*0.5;
 						scanfloyd[j*3+1+i*192*3]=(photo->data[j*6+1+i*384*3]+photo->data[j*6+4+i*384*3])*0.5;
@@ -1343,32 +1399,137 @@ printf("load BMP file\n");
 							preview[j*6+2+i*384*3]=preview[j*6+5+i*384*3]=rastamix[i].palette[c*3+2];
 
 							if (!bayerEnable) {
+								/* calcul de l'erreur */
 								qr=(or-rastamix[i].palette[c*3+0])*floydcoef;
 								qv=(ov-rastamix[i].palette[c*3+1])*floydcoef;
 								qb=(ob-rastamix[i].palette[c*3+2])*floydcoef;
-								/* pixel suivant prend 7/16 de l'erreur */
-								if (j<191) {
-									scanfloyd[j*3+0+3]+=qr*7/16;
-									scanfloyd[j*3+1+3]+=qv*7/16;
-									scanfloyd[j*3+2+3]+=qb*7/16;
-								}
-								if (i<269) {
-									/* pixel du dessous en retrait prend 3/16 de l'erreur */
-									if (j) {
-										scanfloyd[j*3+0-3+192*3]+=qr*3/16;
-										scanfloyd[j*3+1-3+192*3]+=qv*3/16;
-										scanfloyd[j*3+2-3+192*3]+=qb*3/16;
-									}
-									/* pixel immédiatement en dessous 5/16 de l'erreur */
-									scanfloyd[j*3+0+192*3]+=qr*5/16;
-									scanfloyd[j*3+1+192*3]+=qv*5/16;
-									scanfloyd[j*3+2+192*3]+=qb*5/16;
-									/* pixel dessous à droite 1/16 de l'erreur */
-									if (j<191) {
-										scanfloyd[j*3+0+3+192*3]+=qr*1/16;
-										scanfloyd[j*3+1+3+192*3]+=qv*1/16;
-										scanfloyd[j*3+2+3+192*3]+=qb*1/16;
-									}
+								switch (ditherStyle) {
+									default:
+									case 0: /* Floyd Steinberb */
+										/* pixel suivant prend 7/16 de l'erreur */
+										if (j<191) {
+											scanfloyd[j*3+0+3]+=qr*7/16;
+											scanfloyd[j*3+1+3]+=qv*7/16;
+											scanfloyd[j*3+2+3]+=qb*7/16;
+										}
+										if (i<269) {
+											/* pixel du dessous en retrait prend 3/16 de l'erreur */
+											if (j) {
+												scanfloyd[j*3+0-3+192*3]+=qr*3/16;
+												scanfloyd[j*3+1-3+192*3]+=qv*3/16;
+												scanfloyd[j*3+2-3+192*3]+=qb*3/16;
+											}
+											/* pixel immédiatement en dessous 5/16 de l'erreur */
+											scanfloyd[j*3+0+192*3]+=qr*5/16;
+											scanfloyd[j*3+1+192*3]+=qv*5/16;
+											scanfloyd[j*3+2+192*3]+=qb*5/16;
+											/* pixel dessous à droite 1/16 de l'erreur */
+											if (j<191) {
+												scanfloyd[j*3+0+3+192*3]+=qr*1/16;
+												scanfloyd[j*3+1+3+192*3]+=qv*1/16;
+												scanfloyd[j*3+2+3+192*3]+=qb*1/16;
+											}
+										}
+										break;
+									case 1: /* Jarvis, Judice & Ninke */
+										if (j<191) {
+											scanfloyd[j*3+0+3]+=qr*7/48;
+											scanfloyd[j*3+1+3]+=qv*7/48;
+											scanfloyd[j*3+2+3]+=qb*7/48;
+											if (j<190) {
+												scanfloyd[j*3+0+6]+=qr*5/48;
+												scanfloyd[j*3+1+6]+=qv*5/48;
+												scanfloyd[j*3+2+6]+=qb*5/48;
+											}
+										}
+										if (i<269) {
+											/* ligne +1 */
+											if (j) {
+												scanfloyd[j*3+0-3+192*3]+=qr*5/48;
+												scanfloyd[j*3+1-3+192*3]+=qv*5/48;
+												scanfloyd[j*3+2-3+192*3]+=qb*5/48;
+												if (j>1) {
+													scanfloyd[j*3+0-6+192*3]+=qr*3/48;
+													scanfloyd[j*3+1-6+192*3]+=qv*3/48;
+													scanfloyd[j*3+2-6+192*3]+=qb*3/48;
+												}
+											}
+											scanfloyd[j*3+0-0+192*3]+=qr*7/48;
+											scanfloyd[j*3+1-0+192*3]+=qv*7/48;
+											scanfloyd[j*3+2-0+192*3]+=qb*7/48;
+											if (j<191) {
+												scanfloyd[j*3+0+3+192*3]+=qr*5/48;
+												scanfloyd[j*3+1+3+192*3]+=qv*5/48;
+												scanfloyd[j*3+2+3+192*3]+=qb*5/48;
+												if (j<190) {
+													scanfloyd[j*3+0+6+192*3]+=qr*3/48;
+													scanfloyd[j*3+1+6+192*3]+=qv*3/48;
+													scanfloyd[j*3+2+6+192*3]+=qb*3/48;
+												}
+											}
+											/* ligne +2 */
+											if (i<268) {
+												if (j) {
+													scanfloyd[j*3+0-3+192*6]+=qr*3/48;
+													scanfloyd[j*3+1-3+192*6]+=qv*3/48;
+													scanfloyd[j*3+2-3+192*6]+=qb*3/48;
+													if (j>1) {
+														scanfloyd[j*3+0-6+192*6]+=qr*1/48;
+														scanfloyd[j*3+1-6+192*6]+=qv*1/48;
+														scanfloyd[j*3+2-6+192*6]+=qb*1/48;
+													}
+												}
+												scanfloyd[j*3+0-0+192*6]+=qr*5/48;
+												scanfloyd[j*3+1-0+192*6]+=qv*5/48;
+												scanfloyd[j*3+2-0+192*6]+=qb*5/48;
+												if (j<191) {
+													scanfloyd[j*3+0+3+192*6]+=qr*3/48;
+													scanfloyd[j*3+1+3+192*6]+=qv*3/48;
+													scanfloyd[j*3+2+3+192*6]+=qb*3/48;
+													if (j<190) {
+														scanfloyd[j*3+0+6+192*6]+=qr*1/48;
+														scanfloyd[j*3+1+6+192*6]+=qv*1/48;
+														scanfloyd[j*3+2+6+192*6]+=qb*1/48;
+													}
+												}
+											}
+										}
+										break;
+									case 2:
+										// atkinson @@TODO
+										if (j<191) {
+											scanfloyd[j*3+0+3]+=qr*1/8;
+											scanfloyd[j*3+1+3]+=qv*1/8;
+											scanfloyd[j*3+2+3]+=qb*1/8;
+											if (j<190) {
+												scanfloyd[j*3+0+6]+=qr*1/8;
+												scanfloyd[j*3+1+6]+=qv*1/8;
+												scanfloyd[j*3+2+6]+=qb*1/8;
+											}
+										}
+										if (i<269) {
+											/* ligne +1 */
+											if (j) {
+												scanfloyd[j*3+0-3+192*3]+=qr*1/48;
+												scanfloyd[j*3+1-3+192*3]+=qv*1/48;
+												scanfloyd[j*3+2-3+192*3]+=qb*1/48;
+											}
+											scanfloyd[j*3+0-0+192*3]+=qr*1/48;
+											scanfloyd[j*3+1-0+192*3]+=qv*1/48;
+											scanfloyd[j*3+2-0+192*3]+=qb*1/48;
+											if (j<191) {
+												scanfloyd[j*3+0+3+192*3]+=qr*1/48;
+												scanfloyd[j*3+1+3+192*3]+=qv*1/48;
+												scanfloyd[j*3+2+3+192*3]+=qb*1/48;
+											}
+											/* ligne +2 */
+											if (i<268) {
+												scanfloyd[j*3+0-0+192*6]+=qr*1/48;
+												scanfloyd[j*3+1-0+192*6]+=qv*1/48;
+												scanfloyd[j*3+2-0+192*6]+=qb*1/48;
+											}
+										}
+										break;
 								}
 							}
 						} else {
@@ -1497,25 +1658,23 @@ printf("load BMP file\n");
 					if (numligne==168) adr=16384;
 
 					/* prêt pour la ligne suivante! */
-					memcpy(&scanfloyd[0],&scanfloyd[192*3],sizeof(scanfloyd)/2);
-					/* injection de nouvelles données sauf sur la dernière ligne! */
-					if (i<photo->height-2)
+					memcpy(&scanfloyd[0],&scanfloyd[192*3],sizeof(float)*3*192);
+					memcpy(&scanfloyd[192*3],&scanfloyd[192*6],sizeof(float)*3*192);
+					/* injection de nouvelles données sauf si on sort de l'écran */
+					if (i<photo->height-3)
 					for (j=0;j<192;j++) {
-						scanfloyd[j*3+0+1*192*3]=(photo->data[j*6+0+(i+2)*384*3]+photo->data[j*6+3+(i+2)*384*3])*0.5;
-						scanfloyd[j*3+1+1*192*3]=(photo->data[j*6+1+(i+2)*384*3]+photo->data[j*6+4+(i+2)*384*3])*0.5;
-						scanfloyd[j*3+2+1*192*3]=(photo->data[j*6+2+(i+2)*384*3]+photo->data[j*6+5+(i+2)*384*3])*0.5;
+						/* copier L+3 dans buffer L+2 */
+						scanfloyd[j*3+0+2*192*3]=(photo->data[j*6+0+(i+3)*384*3]+photo->data[j*6+3+(i+3)*384*3])*0.5;
+						scanfloyd[j*3+1+2*192*3]=(photo->data[j*6+1+(i+3)*384*3]+photo->data[j*6+4+(i+3)*384*3])*0.5;
+						scanfloyd[j*3+2+2*192*3]=(photo->data[j*6+2+(i+3)*384*3]+photo->data[j*6+5+(i+3)*384*3])*0.5;
 					}
 				}
-
-
-
-
 
 				redraw=1;
 			}
 		}
 		/************************************************************* display **************************************/
-		if (redraw) {
+		if (redraw && width && height) {
 			unsigned int pptr;
 
 #define GET_PHOTOPIXEL(ptr) (unsigned int)preview[(ptr)*3+2]+(unsigned int)(preview[(ptr)*3+1]<<8)+(unsigned int)(preview[(ptr)*3+0]<<16)+(0xFF<<24);
@@ -1713,8 +1872,7 @@ printf("load BMP file\n");
 				}
 
 				/* HUD */
-				int idx=0;
-				for (i=0;i<32;i++) {
+				for (i=idx=0;i<32;i++) {
 					for (j=0;j<512;j++) {
 						PUT_PIXEL(768+j,476+i,&bayerPanel[idx]);idx++;
 					}
@@ -1767,6 +1925,7 @@ printf("load BMP file\n");
 					if (levelup<252) PUT_LINE(768+511,i,-512+levelup*2,0,&myblack);
 				}
 				PUT_LINE(768,126,511,0,&mywhite);
+
 			} else if (hspset_display) {
 				/* zoom mode */
 				if (wasmoving) {
@@ -2068,17 +2227,47 @@ printf("load BMP file\n");
 			{
 			char windowname[256];
 			if (!locked) {
-				sprintf(windowname,"%s Quantization - nblines=%d %s=%.2lf sharp=%.2lf contrast=%.2lf level=%d/%d",WINDOW_NAME,photo->height,bayerEnable?"bayer":"floyd",
-						floydcoef,sharpnesscoef,contrastcoef,levelup,leveldown);
+				switch (ditherStyle) {
+					default:
+					case 0:
+		sprintf(windowname,"%s Quantization - nblines=%d %s=%.2lf sharp=%.2lf contrast=%.2lf level=%d/%d",WINDOW_NAME,photo->height,bayerEnable?"bayer":"Floyd",floydcoef,sharpnesscoef,contrastcoef,levelup,leveldown);break;
+					case 1:
+		sprintf(windowname,"%s Quantization - nblines=%d %s=%.2lf sharp=%.2lf contrast=%.2lf level=%d/%d",WINDOW_NAME,photo->height,bayerEnable?"bayer":"Jarvis",floydcoef,sharpnesscoef,contrastcoef,levelup,leveldown);break;
+					case 2:
+		sprintf(windowname,"%s Quantization - nblines=%d %s=%.2lf sharp=%.2lf contrast=%.2lf level=%d/%d",WINDOW_NAME,photo->height,bayerEnable?"bayer":"Atkinson",floydcoef,sharpnesscoef,contrastcoef,levelup,leveldown);break;
+				}
+
 			} else {
 				sprintf(windowname,"%s BITMAP Edition - cursor %d/%d pencil=%d",WINDOW_NAME,keycursorx,keycursory,currentpen);
 			}
 			SDL_SetWindowTitle(win,windowname);
 			}
 			redraw=0;
+		} else {
+			if (redraw) {
+				SDL_LockSurface(surface);
+				membitmap=surface->pixels;
+				memset(membitmap,0,winx*winy*4);
+
+				PUT_LINE(768,31,511,0,&mywhite);
+				PUT_LINE(768,63,511,0,&mywhite);
+				PUT_LINE(768,95,511,0,&mywhite);
+				PUT_LINE(768,126,511,0,&mywhite);
+
+				for (i=idx=0;i<32;i++) {
+					for (j=0;j<512;j++) {
+						PUT_PIXEL(768+j,476+i,&bayerPanel[idx]);idx++;
+					}
+				}
+
+				SDL_UnlockSurface(surface);
+				SDL_BlitSurface(surface,NULL,screen,NULL);
+				SDL_UpdateWindowSurface(win);
+				SDL_SetWindowTitle(win,"Drag'n drop a PNG/BMP24 in the application to play with...");
+			}
 		}
 		/* interactivité */
-		SDL_PumpEvents();
+		//SDL_PumpEvents();
 		ms=SDL_GetMouseState(&gmx,&gmy);
 		state=SDL_GetKeyboardState(NULL);
 		
@@ -2117,7 +2306,8 @@ printf("load BMP file\n");
 				U -> unlock
 		
 		*/
-		
+	
+		if (is_loaded)	
 		switch (current_module) {
 			case E_MODULE_QUANTIZATION:
 				if (down!=SDL_BUTTON_RIGHT && (ms & SDL_BUTTON(SDL_BUTTON_RIGHT))) {
@@ -2346,6 +2536,12 @@ printf("load BMP file\n");
 					redraw=1;
 					keycursorx=192;
 					keycursory=photo->height/2;
+				} else if (nokey && (state[SDL_SCANCODE_DELETE] || state[SDL_SCANCODE_BACKSPACE])) {
+					if (nbhsp) {
+						hsp[curhsp]=hsp[nbhsp-1]; // delete current HSP
+						nbhsp--;
+					}
+					compute=redraw=1;
 				} else if (nokey && state[SDL_SCANCODE_KP_PLUS]) {
 					curhsp++;
 					if (curhsp>=nbhsp) {
@@ -2363,6 +2559,19 @@ printf("load BMP file\n");
 				} else if (nokey && state[SDL_SCANCODE_T]) {
 					toggle_greentea=1-toggle_greentea;
 					redraw=1;
+				} else if (nokey && state[SDL_SCANCODE_R]) {
+					if (rasterOFF) rasterOFF=0; else rasterOFF=1;
+					redraw=1;
+					compute=1;
+				} else if (nokey && state[SDL_SCANCODE_D]) {
+					switch (ditherStyle) {
+						default:
+						case 0:ditherStyle=1;break;
+						case 1:ditherStyle=2;break;
+						case 2:ditherStyle=0;break;
+					}
+					redraw=1;
+					compute=1;
 				} else if (nokey && state[SDL_SCANCODE_B]) {
 					if (bayerEnable) bayerEnable=0; else bayerEnable=1;
 					redraw=1;
@@ -2588,7 +2797,7 @@ printf("load BMP file\n");
 			if (redo<0) redo=0;
 		}
 
-		if (nokey && state[SDL_SCANCODE_G]) {
+		if (nokey && state[SDL_SCANCODE_G] && is_loaded) {
 			/* generate data */
 			char buftmp[4096],bufint[8];
 
@@ -2623,7 +2832,7 @@ printf("load BMP file\n");
 			FileWriteLine(cprasmfilename,"ld a,0: ld e,2: call SelectUpperRom: ld hl,#C000: ld de,#C000: ld bc,16384: ldir\n");
 			FileWriteLine(cprasmfilename,"mainloopraster:\n");
 			FileWriteLine(cprasmfilename,"jr RastaLoop\n");
-			sprintf(buftmp,"read '%s'\n",asmfilename); FileWriteLine(cprasmfilename,buftmp);
+			sprintf(buftmp,"include '%s'\n",asmfilename); FileWriteLine(cprasmfilename,buftmp);
 			FileWriteLine(cprasmfilename,"EI\n");
 			FileWriteLine(cprasmfilename,"JP mainloopraster\n");
 			FileWriteLine(cprasmfilename,"SelectUpperRom:and %11: or %10000100: ld b,#7F: out (c),a: ld a,e: or #80: and %10011111: ld b,#DF: out (c),a: ret\n");
@@ -2729,19 +2938,29 @@ printf("load BMP file\n");
 				
 				if (nopfirst==2) FileWriteLine(asmfilename,"NOP 2\n");
 				/* legacy raster commence 2 NOPS trop tôt à changer d'encre */
+
+
+				/* changement de 4 encres dans le fond => 4+3+3+3 + 5+6+6+6 => 36 nops */
 				sprintf(cpccode,"LD IX,#%04X\nLD BC,#%04X\nLD DE,#%04X\nLD HL,#%04X\nLD (#%04X),IX\nLD (#%04X),BC\nLD (#%04X),DE\nLD (#%04X),HL\n",
 					rastamix[j].asicol[0],rastamix[j].asicol[1],rastamix[j].asicol[2],rastamix[j].asicol[3],
 					rastamix[j].asicad[0],rastamix[j].asicad[1],rastamix[j].asicad[2],rastamix[j].asicad[3]);
 				FileWriteLine(asmfilename,cpccode);
-				if (nopfirst==2) FileWriteLine(asmfilename,"NOP 2\n"); else FileWriteLine(asmfilename,"NOP 4\n");
+
+				if (nopfirst==2) FileWriteLine(asmfilename,"\n"); else FileWriteLine(asmfilename,"NOP 2\n");
 				
-				/* hsp raster 24 nops both cases */
+				/* hsp raster 26 nops both cases */
 				if (rastamix[j].hspad) {
-					sprintf(cpccode,"LD HL,#%04X\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\nLD B,1\nDJNZ $\nNOP\n",rastamix[j].hspad,
-						rastamix[j].hspcol1&0xFF,rastamix[j].hspcol1>>8,rastamix[j].hspcol2&0xFF,rastamix[j].hspcol2>>8);
+					sprintf(cpccode,"LD HL,#%04X\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\nINC L\nLD (HL),#%02X\n",
+							//LD B,1\nDJNZ $\nNOP\n",
+							rastamix[j].hspad,
+							rastamix[j].hspcol1&0xFF,rastamix[j].hspcol1>>8,
+							rastamix[j].hspcol2&0xFF,rastamix[j].hspcol2>>8,
+							rastamix[j].hspcol3&0xFF,rastamix[j].hspcol3>>8
+							);
 					FileWriteLine(asmfilename,cpccode);
 				} else {
-					FileWriteLine(asmfilename,"LD B,4\nNOP\nDJNZ $-1\nNOP 3\n");
+					//FileWriteLine(asmfilename,"LD B,4\nNOP\nDJNZ $-1\nNOP 3\n");
+					FileWriteLine(asmfilename,"ex (sp),hl : ex (sp),hl : ex (sp),hl : ex (sp),hl : nop 2\n");
 				}
 			
 			}
@@ -2818,6 +3037,7 @@ printf("load BMP file\n");
 			sprintf(buftmp,"	<keycursorx v=\"%d\"/>\n",keycursorx); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<keycursory v=\"%d\"/>\n",keycursory); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<floyd v=\"%.2lf\"/>\n",floydcoef); FileWriteLine(xmlfilename,buftmp);
+			sprintf(buftmp,"	<ditherStyle v=\"%d\"/>\n",ditherStyle); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<bayerN v=\"%d\"/>\n",bayerN); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<sharp v=\"%.2lf\"/>\n",sharpnesscoef); FileWriteLine(xmlfilename,buftmp);
 			sprintf(buftmp,"	<contrast v=\"%.2lf\"/>\n",contrastcoef); FileWriteLine(xmlfilename,buftmp);
@@ -2928,8 +3148,9 @@ printf("load BMP file\n");
 		}
 
 		if ( state[SDL_SCANCODE_ESCAPE]+state[SDL_SCANCODE_KP_PLUS]+state[SDL_SCANCODE_KP_MINUS]+state[SDL_SCANCODE_T]+state[SDL_SCANCODE_G]
-			+state[SDL_SCANCODE_L]+state[SDL_SCANCODE_U]+state[SDL_SCANCODE_P]+state[SDL_SCANCODE_B]
+			+state[SDL_SCANCODE_L]+state[SDL_SCANCODE_U]+state[SDL_SCANCODE_P]+state[SDL_SCANCODE_B]+state[SDL_SCANCODE_R]+state[SDL_SCANCODE_D]
 			+state[SDL_SCANCODE_KP_0]+state[SDL_SCANCODE_KP_PERIOD]
+			+state[SDL_SCANCODE_DELETE]+state[SDL_SCANCODE_BACKSPACE]
 			+state[SDL_SCANCODE_DOWN]+state[SDL_SCANCODE_UP]+state[SDL_SCANCODE_RIGHT]+state[SDL_SCANCODE_LEFT]+state[SDL_SCANCODE_SPACE])
 				nokey=0; else nokey=1;
 				
@@ -2965,7 +3186,7 @@ void Usage()
 	#undef FUNC
 	#define FUNC "Usage"
 	
-	printf("%.*s.exe v10.0 / Edouard BERGE 2016 (build 2025-01)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
+	printf("%.*s.exe v11.0 / Edouard BERGE 2016 (build 2025-01)\n",(int)(sizeof(__FILENAME__)-3),__FILENAME__);
 	printf("BMP loader by https://github.com/phm97\n");
 	printf("--- this software is designed to run with colorful images, avoid conversion from Atari/Amiga ---\n");
 	printf("           introducing for the first time ASS technology (Amstrad Split Solver)\n");
@@ -3004,7 +3225,7 @@ void Usage()
 	
 	used to parse command line and configuration file
 */
-int ParseOptions(char **argv,int argc, char **zepic, int *dithering, int *uniform)
+int ParseOptions(char **argv,int argc, char **zepic)
 {
 	#undef FUNC
 	#define FUNC "ParseOptions"
@@ -3038,16 +3259,14 @@ int ParseOptions(char **argv,int argc, char **zepic, int *dithering, int *unifor
 	GetParametersFromCommandLine	
 	retrieve parameters from command line and fill pointers to file names
 */
-void GetParametersFromCommandLine(int argc, char **argv, char **zepic, int *dithering, int *uniform)
+void GetParametersFromCommandLine(int argc, char **argv, char **zepic)
 {
 	#undef FUNC
 	#define FUNC "GetParametersFromCommandLine"
 	int i;
 	
 	for (i=1;i<argc;i++)
-		i+=ParseOptions(&argv[i],argc-i,zepic,dithering,uniform);
-
-	if (!*zepic) Usage();
+		i+=ParseOptions(&argv[i],argc-i,zepic);
 }
 
 /*
@@ -3062,13 +3281,11 @@ int main(int argc, char **argv)
 	#define FUNC "main"
 
 	char *zepic=NULL;
-	int dithering=0;
-	int uniform=0;
 
-	GetParametersFromCommandLine(argc,argv,&zepic,&dithering,&uniform);
-	Build(zepic,dithering,uniform);
+	GetParametersFromCommandLine(argc,argv,&zepic);
+	Build(zepic);
 	//CloseLibrary();
-    SDL_Quit();
+    	SDL_Quit();
 	return 0;
 }
 
