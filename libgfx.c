@@ -2888,7 +2888,7 @@ static void bmpReadPixels32( FILE *file, unsigned char *dest, int w, int h )
 	p = dest;
 	for( i = 0; i < h; i++ ) {
 		for( j = 0; j < w; j++ ) {
-			fread( px, 4, 1, file );
+			if (fread( px, 4, 1, file )!=4) printf("ReadError\n");
 			*p = px[3]; p++; /* convert BGRX to RGBA */
 			*p = px[2]; p++;
 			*p = px[1]; p++;
@@ -2905,7 +2905,7 @@ static void bmpReadPixels24( FILE *file, unsigned char *dest, int w, int h )
 	p = dest;
 	for( i = 0; i < h; i++ ) {
 		for( j = 0; j < w; j++ ) {
-			fread( px, 3, 1, file );
+			if (fread( px, 3, 1, file )!=3) printf("ReadError\n");
 			*p = px[2]; p++;	/* convert BGR to RGBA */
 			*p = px[1]; p++;
 			*p = px[0]; p++;
@@ -2928,7 +2928,7 @@ static void bmpReadPixels16( FILE *file, unsigned char *dest, int w, int h )
 	p = dest;
 	for( i=0; i < h; i++ ) {
 		for( j=0; j < w; j++ ) {
-			fread( &pxl, 2, 1, file );
+			if (fread( &pxl, 2, 1, file )!=2) printf("ReadError\n");
 			b = (pxl >> 10) & bitmask;
 			g = (pxl >> 5) & bitmask;
 			r =  pxl & bitmask;
@@ -2950,7 +2950,7 @@ static void bmpReadPixels8( FILE *file, unsigned char *dest, bmp_palette_element
 	p = dest;
 	for( i=0; i < h; i++ ) {
 		for( j=0; j < w; j++ ) {
-			fread( &px, 1, 1, file );
+			if (fread( &px, 1, 1, file )!=1) printf("ReadError\n");
 			*p = palette[px].red; p++;
 			*p = palette[px].green; p++;
 			*p = palette[px].blue; p++;
@@ -2970,7 +2970,7 @@ static void bmpReadPixels4( FILE *file, unsigned char *dest, bmp_palette_element
 	
 	p = dest;
 	for( int i=0; i < h; i++ ) {
-		fread( row_stride, size, 1, file );
+		if (fread( row_stride, size, 1, file )!=size) printf("ReadError\n");
 		for( int j=0; j < h; j++ ) {
 			byte = row_stride[j/2];
 			index = (j % 2) ? bitmask&byte : byte>>4;
@@ -2994,7 +2994,7 @@ static void bmpReadPixels1( FILE *file, unsigned char *dest, bmp_palette_element
 	
 	p = dest;
 	for( int i=0; i < h; i++ ) {
-		fread( row_stride, size, 1, file );
+		if (fread( row_stride, size, 1, file )!=size) printf("ReadError\n");
 		for( int j=0; j < w; j++ ) {
 			bit = (j % 8) + 1;
 			byte = row_stride[j/8];
@@ -3030,7 +3030,7 @@ int loadBMP( const char *filename, unsigned char **data, int *width, int *height
 		return 1;
 	}
 	
-	fread( &magic_number, 2, 1, file );
+	if (fread( &magic_number, 2, 1, file )!=2) printf("ReadError\n");
 	if( magic_number != BITMAP_MAGIC_NUMBER ) {
 		printf("%s is not a valid bmp file : magic number is %d whereas it should be %d\n", filename, magic_number, BITMAP_MAGIC_NUMBER );
 		fclose( file );
@@ -3038,8 +3038,8 @@ int loadBMP( const char *filename, unsigned char **data, int *width, int *height
 	}
 	
 	/* read headers */
-	fread( (void*)&file_header, 12, 1, file );
-	fread( (void*)&info_header, 40, 1, file );
+	if (fread( (void*)&file_header, 12, 1, file )!=12) printf("ReadError\n");
+	if (fread( (void*)&info_header, 40, 1, file )!=40) printf("ReadError\n");
 	
 	/* info_header sanity checks */
 	/* accepted headers : bitmapinfoheader, bitmapv4header, bitmapv5header */
@@ -3078,7 +3078,7 @@ int loadBMP( const char *filename, unsigned char **data, int *width, int *height
 			fclose( file );
 			return 1;
 		} else
-			fread( (void*)palette, sizeof(bmp_palette_element_t), info_header.colors_used, file );
+			if (fread( (void*)palette, sizeof(bmp_palette_element_t), info_header.colors_used, file )!=sizeof(bmp_palette_element_t)*info_header.colors_used) printf("ReadError\n");
 	}
 	
 	/* memory allocation */
